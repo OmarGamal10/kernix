@@ -12,5 +12,9 @@ typedef struct MinHeap
     int (*compare)(void *a, void *b);
 } MinHeap;
 
-
-MinHeap *createMinHeap(int capacity, int (*compare)(void *a, void *b));
+MinHeap *createMinHeap (int capacity, int (*compare)(void *a, void *b));
+void *extractMin (MinHeap *min_h);
+void *getMin (MinHeap*min_h);
+void minHeapify(MinHeap *min_h, int ind);
+void *printHeap(MinHeap*min_h);
+void *destroyHeap(MinHeap*min_h);
