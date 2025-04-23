@@ -79,7 +79,7 @@ void minHeapify(MinHeap *min_h, int idx) {
 }
 
 // Function to print the heap elements (for testing/debugging)
-void *printHeap(MinHeap *min_h) {
+void printHeap(MinHeap *min_h) {
     for (int i = 0; i < min_h->size; i++) {
         printf("%d ", *(int *)min_h->array[i]);
     }
@@ -87,7 +87,7 @@ void *printHeap(MinHeap *min_h) {
 }
 
 // Function to destroy the heap and free its allocated memory
-void *destroyHeap(MinHeap *min_h) {
+void destroyHeap(MinHeap *min_h) {
     if (min_h == NULL) {
         return;
     }
