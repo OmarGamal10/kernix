@@ -14,3 +14,6 @@ typedef struct MinHeap
 
 
 MinHeap *createMinHeap(int capacity, int (*compare)(void *a, void *b));
+
+void insertMinHeap(MinHeap *min_h, void *data);
+int getElementIndex(MinHeap *min_h, void *data);
