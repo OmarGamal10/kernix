@@ -13,7 +13,13 @@ typedef struct MinHeap
 } MinHeap;
 
 
+
 MinHeap *createMinHeap(int capacity, int (*compare)(void *a, void *b));
 
 void insertMinHeap(MinHeap *min_h, void *data);
 int getElementIndex(MinHeap *min_h, void *data);
+void *extractMin (MinHeap *min_h);
+void *getMin (MinHeap*min_h);
+void minHeapify(MinHeap *min_h, int ind);
+void printHeap(MinHeap*min_h);
+void destroyHeap(MinHeap*min_h);
