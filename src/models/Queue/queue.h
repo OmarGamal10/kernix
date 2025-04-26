@@ -3,13 +3,13 @@
 #include <stdbool.h>
 #include "stdio.h"
 
-typedef struct {
+typedef struct Node {
   void* data;
   struct Node* next;
 } Node;
 
 
-typedef struct {
+typedef struct Queue {
   Node* front;
   Node* rear;
   int size;
