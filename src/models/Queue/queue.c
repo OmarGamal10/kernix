@@ -57,7 +57,7 @@ void enqueue(Queue* queue, void* data) {
     queue->rear = newnode;
   }
   queue->size++;
-  printQueue(queue, printProcess);
+  //printQueue(queue, printProcess);
 }
 
 void* dequeue(Queue* queue) {
@@ -74,12 +74,12 @@ void* dequeue(Queue* queue) {
   }
   free(temp);
   queue->size--;
-  printQueue(queue, printProcess);
+  //printQueue(queue, printProcess);
   return data;
 }
 
 
-
+/*
 int main() {
   struct Queue* q = createQueue();
 
@@ -126,3 +126,4 @@ int main() {
   
   return 0;
 }
+  */

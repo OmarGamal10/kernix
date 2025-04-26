@@ -22,6 +22,7 @@ int shmid;
 /* Clear the resources before exit */
 void _cleanup(__attribute__((unused)) int signum)
 {
+    printf("Clock cleaning up and value of *shmaddr: %d\n", *shmaddr);
     shmctl(shmid, IPC_RMID, NULL);
     printf("Clock terminating!\n");
     exit(0);
