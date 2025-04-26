@@ -40,12 +40,12 @@ Queue finishedQueue; // Queue for finished processes
 int msgqid; // Message queue ID 
 //!this one for receiving the process from the process generator
 
-int msgqid2; // Message queue ID for sending aknowledgment of receiving the process
+int msgqid2; // Message queue ID for sending acknowledgment of receiving the process
 
 // Message structure for IPC
 typedef struct {
     long mtype;
-    //todo:change it based on the sending from prcoess_genrator
+    //todo:change it based on the sending from process_generator
     int process_id;
     int arrival_time;
     int runtime;
@@ -53,7 +53,7 @@ typedef struct {
     //  PCB* process; 
 } ProcessMessage;
 
-//comaprsion function for HPF
+//comparison function for HPF
 
 int comparePriority(void *a, void *b) {
     PCB *processA = (PCB *)a;
@@ -108,7 +108,7 @@ void initialization(int algorithm, int q) {
     fprintf(logFile, "#At time x process y state arr w total z remain y wait k\n");
     
     // Set up IPC (message queue) 
-    //todo:change it based on the sending from prcoess_genrator
+    //todo:change it based on the sending from process_generator
     key_t key = ftok("keyfile", 'a');
     msgqid = msgget(key, 0666 | IPC_CREAT);
 
@@ -136,7 +136,7 @@ void initialization(int algorithm, int q) {
 //receive from the process generator
 // This function receives a process message from the message queue
 
-void recieve_process() {
+void receive_process() {
     ProcessMessage msg;
     //todo:change it based on the sending from prcoess_genrator
     // Try to receive message without blocking
@@ -212,7 +212,7 @@ void start_process(int process_id)
 
     if(pcb->pid!=-1)
     {
-        kill(pcb->pid, SIGCONT); //todo:must be catched in the process
+        kill(pcb->pid, SIGCONT); //todo:must be caught in the process
         printf("Process %d started at time %d\n", pcb->id, current_time);
     }
     else

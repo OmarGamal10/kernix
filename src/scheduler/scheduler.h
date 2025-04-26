@@ -9,7 +9,7 @@
 //function prototypes
 void initialization(int algorithm, int q);
 
-void recieve_process();
+void receive_process();
 void scheduleProcess();
 
 void scheduleHPF();
@@ -27,7 +27,7 @@ void generateStatistics();
 
 void cleanup();
 
-//comparsion functions for HPF and SRT
+//comparison functions for HPF and SRT
 int comparePriority(void *a, void *b);
 int compareRemainingTime(void *a, void *b);
 // int compareByID(void *a, void *b);
