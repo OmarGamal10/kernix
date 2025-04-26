@@ -63,7 +63,7 @@ void enqueue(Queue* queue, void* data) {
 void* dequeue(Queue* queue) {
   if(isEmpty(queue)) {
     printf("Queue is empty\n");
-    return;
+    return NULL;
   }
   
   Node* temp = queue->front;
@@ -97,6 +97,13 @@ int main() {
   printf("Dequeued: %d %d\n", f->pid, f->priority);
   f = (process*)dequeue(q);
   printf("Dequeued: %d %d\n", f->pid, f->priority);
+
+  f = (process*)dequeue(q);
+  if(f == NULL) {
+    printf("Queue is empty\n");
+  } else {
+    printf("Dequeued: %d %d\n", f->pid, f->priority);
+  }
 
   process* c = malloc(sizeof(process));
   c->pid = 30;
