@@ -69,7 +69,6 @@ void sync_clk()
     while ((int)shmid == -1)
     {
         // Make sure that the clock exists
-        printf("Wait! The clock not initialized yet!\n");
         sleep(1);
         shmid = shmget(SHKEY, 4, 0444);
     }
