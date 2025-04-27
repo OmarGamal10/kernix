@@ -53,5 +53,7 @@ dkms.conf
 
 src/bin
 src/obj
-processes.txt
 .vscode
+
+scheduler.log
+keyfile
