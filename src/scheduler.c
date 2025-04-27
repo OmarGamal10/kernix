@@ -7,14 +7,19 @@ int quantum;
 int msgq_id;             
 FILE* logFile;          
 void* readyQueue;        
-PCB** processes;         
+int max_processes = 100;
+PCB* PCB_table_head = NULL;
+PCB* PCB_table_tail = NULL;
 int process_count = 0;   
-int max_processes = 100; //should perhaps be a parameter
 PCB* running_process = NULL; 
 int current_time = -1;   
 int time_slice = 0;      
-int terminated = 0;    
-bool process_not_arrived = true; 
+int terminated = 0;  
+int KEY = 300;   
+int process_not_arrived = 1; // Flag to indicate if there is a processes that haven't arrived
+// int shm_id;
+
+// int *current_shm_ptr = NULL; // Pointer to shared memory for current process
 
 
 int main(int argc, char* argv[]) {
@@ -75,11 +80,6 @@ void initialize(int alg, int q) {
             break;
     }
     
-    processes = (PCB**)malloc(max_processes * sizeof(PCB*));
-    if (!processes) {
-        perror("Failed to allocate memory for process array");
-        exit(1);
-    }
     
     // Create log file (placeholder, i don't use it yet)
     logFile = fopen("scheduler.log", "w");
@@ -114,22 +114,13 @@ void run_scheduler() {
         int new_time = get_clk();
         if (new_time > current_time) {
             current_time = new_time;
+
+             // Check if process finished
+            if (running_process && running_process->remaining_time <= 0) {
+                handle_finished_process();
+            }
             
             check_arrivals();
-            
-            // Update times and check for finished processes
-            if (running_process) {
-                running_process->remaining_time--;
-                
-                if (algorithm == RR) {
-                    time_slice++;
-                }
-                
-                // Check if process finished
-                if (running_process->remaining_time <= 0) {
-                    handle_finished_process();
-                }
-            }
             
             // Select next process if needed
             PCB* next_process = select_next_process();
@@ -143,6 +134,20 @@ void run_scheduler() {
                     start_process(running_process);
                 }
             }
+
+            // Update times and check for finished processes
+            if (running_process) {
+
+                //decrement this first, the shared memory is the source of truth to the process running
+                // (*current_shm_ptr)--;
+                //then decrement local data in PCB
+                running_process->remaining_time--;
+                
+                if (algorithm == RR) {
+                    time_slice++;
+                }
+            }
+            
         }
     }
 }
@@ -199,13 +204,7 @@ void check_arrivals() {
             new_process->status = READY;
 
             // Add to processes array
-            if (process_count < max_processes) {
-                processes[process_count++] = new_process;
-            } else {
-                fprintf(stderr, "Max processes exceeded\n");
-                free(new_process);
-                continue;
-            }
+            PCB_add(new_process);
 
             // Add to ready queue
             switch (algorithm) {
@@ -276,7 +275,7 @@ void handle_finished_process() {
             waitpid(running_process->pid, &status, 0);
         }
         
-        running_process->status = FINISHED;
+        PCB_remove(running_process);
         
         running_process = NULL;
         time_slice = 0;
@@ -310,32 +309,23 @@ int compare_remaining_time(void* a, void* b) {
 }
 
 // Select the next process to run based on the algorithm
-// Select the next process to run based on the algorithm
-// Select the next process to run based on the algorithm
 PCB* select_next_process() {
-    // Check if running process is finished first
-    if (running_process && running_process->remaining_time <= 0) {
-        // Process is finished, don't enqueue it
-        return NULL;
-    }
 
     // If using RR and quantum expired, put process back in queue
     if (algorithm == RR && running_process && time_slice >= quantum) {
-        printf("Quantum expired for Process %d (remaining time: %d)\n", 
-               running_process->id, running_process->remaining_time);
+        printf("Quantum expired for Process %d (remaining time: %d)\n", running_process->id, running_process->remaining_time);
         
-        // Only enqueue if process still has remaining time
+        // Only enqueue if process still has remaining time, which should be the case anyways
         if (running_process->remaining_time > 0) {
             enqueue(readyQueue, running_process);
-            running_process->status = READY;
         }
         
         PCB* next = NULL;
-        running_process = NULL;
+        // running_process = NULL;
         time_slice = 0;
         
         // Get next process from queue if available
-        if (!Empty(readyQueue)) {
+        if (!isEmpty(readyQueue)) {
             next = (PCB *)dequeue(readyQueue);
         }
         
@@ -349,7 +339,7 @@ PCB* select_next_process() {
                 return running_process;
                 
             case SRTN:
-                if (!Empty(readyQueue)){
+                if (!isEmpty(readyQueue)){
                     PCB* top = getMin(readyQueue);
                     if (top && top->remaining_time < running_process->remaining_time) {
                         // Preempt current process
@@ -371,13 +361,13 @@ PCB* select_next_process() {
     switch(algorithm) {
         case HPF:
         case SRTN:
-            if (!Empty(readyQueue)){
+            if (!isEmpty(readyQueue)){
                 return (PCB *)extractMin(readyQueue);
             }
             break;
                 
         case RR:
-            if (!Empty(readyQueue)) {
+            if (!isEmpty(readyQueue)) {
                 return (PCB *)dequeue(readyQueue);
             }
             break;
@@ -388,44 +378,58 @@ PCB* select_next_process() {
 }
 
 
+
 void start_process(PCB* process) {
     if (!process) return;
-    
+
     process->status = RUNNING;
-    
+
     if (process->start_time == -1) {
         // First time starting this process
         process->start_time = current_time;
         process->wait_time = current_time - process->arrival_time;
-        
+
+        // Create a unique shared memory segment for this process
+        int shm_id = shmget(IPC_PRIVATE, sizeof(int), 0666 | IPC_CREAT);
+        if (shm_id == -1) {
+            perror("Failed to create shared memory for process");
+            exit(1);
+        }
+        int *proc_shm_ptr = (int *)shmat(shm_id, NULL, 0);
+        if (proc_shm_ptr == (int *)-1) {
+            perror("Failed to attach shared memory for process");
+            exit(1);
+        }
+        *proc_shm_ptr = process->remaining_time;
+        process->shm_id = shm_id;         // Add shm_id to PCB struct
+        process->shm_ptr = proc_shm_ptr;  // Add shm_ptr to PCB struct
+
         pid_t pid = fork();
         if (pid == -1) {
             perror("Failed to fork process");
             exit(1);
-        }
-        else if (pid == 0) {
+        } else if (pid == 0) {
             // Child process
-            char runtime_str[20];
-            char id_str[20];
+            char runtime_str[20], id_str[20], shm_id_str[20];
             sprintf(runtime_str, "%d", process->runtime);
             sprintf(id_str, "%d", process->id);
-            execl("./bin/process", "process", runtime_str, id_str, NULL);
+            sprintf(shm_id_str, "%d", shm_id);
+            execl("./bin/process", "process", runtime_str, id_str, shm_id_str, NULL);
             perror("Failed to exec process");
             exit(1);
-        }
-        else {
+        } else {
             process->pid = pid;
             log_process_state(process, "started");
         }
-    }
-    else {
+    } else {
+        // Resume logic (if needed)
+        *process->shm_ptr = process->remaining_time;
         kill(process->pid, SIGCONT);
         process->status = RUNNING;
-
         log_process_state(process, "resumed");
     }
-    
-    time_slice = 0; 
+
+    time_slice = 0;
 }
 
 // Stop a process
@@ -435,8 +439,9 @@ void stop_process(PCB* process) {
     if (process->status == RUNNING && process->remaining_time > 0) {
         // Only stop if process is running and not finished
         printf("Stopping process %d (remaining time: %d)\n", process->id, process->remaining_time);
-        
+
         kill(process->pid, SIGSTOP);
+        //current_shm_ptr = NULL; // Reset shared memory pointer
         process->status = READY;
         log_process_state(process, "stopped");
     }
@@ -452,24 +457,70 @@ void log_process_state(PCB* process, char* state) {
     fflush(logFile);
 }
 
+void PCB_add(PCB* process) {
+    if (!process) return;
+    printf("Adding process %d to PCB table\n", process->id);
+    
+    if (PCB_table_head == NULL) {
+        PCB_table_head = process;
+        PCB_table_tail = process;
+        process->next = NULL;
+    } else {
+        PCB_table_tail->next = process;
+        PCB_table_tail = process;
+        process->next = NULL;
+    }
+    
+    process_count++;
+}
+
+void PCB_remove(PCB* process) {
+    if (!PCB_table_head || !process) return;
+    printf("Removing process %d from PCB table\n", process->id);
+    
+    if (PCB_table_head == process) {
+        PCB_table_head = process->next;
+        
+        // If we removed the only element, update tail
+        if (PCB_table_tail == process) {
+            PCB_table_tail = NULL;
+        }
+    } else {
+        PCB* current = PCB_table_head;
+        while (current && current->next != process) {
+            current = current->next;
+        }
+        
+        // If process was found in the list
+        if (current) {
+            current->next = process->next;
+            
+            // If we removed the tail, update tail pointer
+            if (PCB_table_tail == process) {
+                PCB_table_tail = current;
+            }
+        } else {
+            // Process not found in list, don't free or decrement
+            return;
+        }
+    }
+    
+    free(process);
+    process_count--;
+}
+
 void cleanup() {
     printf("Cleaning up scheduler resources...\n");
     
     if (logFile) {
         fclose(logFile);
     }
-    
-    if (processes) {
-        for (int i = 0; i < process_count; i++) {
-            if (processes[i]) {
-                // If process is running, kill it
-                if (processes[i]->pid > 0 && processes[i]->status != FINISHED) {
-                    kill(processes[i]->pid, SIGKILL);
-                }
-                free(processes[i]);
-            }
-        }
-        free(processes);
+    PCB* current = PCB_table_head;
+
+    while(current) {
+        PCB* next = current->next;
+        free(current);
+        current = next;
     }
     
     // Free ready queue

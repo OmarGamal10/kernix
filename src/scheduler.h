@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/shm.h>
 #include <sys/wait.h>
 #include <string.h>
 
@@ -26,17 +27,22 @@
 #define BLOCKED 2
 #define FINISHED 3
 
-typedef struct {
-    int id;             
-    int arrival_time;   
-    int runtime;        
-    int remaining_time; 
-    int priority;       
-    pid_t pid;         
-    int wait_time;      
-    int start_time;     
-    int status;       
-} PCB;
+struct PCB {
+    int id;
+    int arrival_time;
+    int runtime;
+    int remaining_time;
+    int priority;
+    pid_t pid;
+    int wait_time;
+    int start_time;
+    int status;
+    struct PCB* next;
+    int shm_id;      // Add this
+    int *shm_ptr;    // Add this
+};
+
+typedef struct PCB PCB; // Forward declaration for PCB
 
 typedef struct {
     long mtype;
@@ -60,9 +66,11 @@ void start_process(PCB* process);
 void stop_process(PCB* process);
 void log_process_state(PCB* process, char* state);
 
-// Comparison functions for priority queues
+
 int compare_priority(void* a, void* b);
 int compare_remaining_time(void* a, void* b);
+void PCB_remove(PCB* process);
+void PCB_add(PCB* process);
 
 
 #endif /* SCHEDULER_H */

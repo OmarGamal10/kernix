@@ -23,7 +23,7 @@ typedef struct {
     int arrival_time;
     int runtime;
     int priority;
-    int pid;
+    pid_t pid;
 } process_data;
 
 // global variables for cleanup
@@ -102,7 +102,7 @@ int main(int argc, char * argv[])
             {1, 0, 5, 1, 0},
             {2, 0, 3, 2, 0},
             {3, 0, 4, 3, 0},
-            {4, 3, 2, 4, 0},
+            {4, 3, 3, 4, 0},
             {5, 4, 1, 5, 0}
         };
         int num_processes = sizeof(process_list) / sizeof(process_list[0]);
@@ -164,8 +164,6 @@ int main(int argc, char * argv[])
                     msg.runtime = 0;
                     msg.priority = 0;
                     
-                    printf("No processes at time %d, sending -1\n", current_time);
-                    
                     if (msgsnd(msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
                         perror("Error sending no-process message");
                     }
@@ -184,7 +182,8 @@ int main(int argc, char * argv[])
     {
         init_clk();
         sync_clk();  
-        run_clk();  
+        run_clk(); 
+
     }
     
     return 0;
@@ -207,7 +206,7 @@ void clear_resources(int signum)
 
     
     // Clean up clock resources
-    destroy_clk(0);
+    destroy_clk(1);
     
     exit(0);
 }

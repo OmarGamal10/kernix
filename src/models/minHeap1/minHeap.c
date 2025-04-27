@@ -58,7 +58,6 @@ void *extractMin(MinHeap *min_h)
 {
     if (min_h->size == 0) // Check if the heap is empty
     {
-        printf("Heap is empty\n");
         return NULL;
     }
 
@@ -81,7 +80,6 @@ void *getMin(MinHeap *min_h)
 {
     if (min_h->size == 0) // Check if the heap is empty
     {
-        printf("Heap is empty\n");
         return NULL;
     }
     return min_h->array[0]; // Return the root element
