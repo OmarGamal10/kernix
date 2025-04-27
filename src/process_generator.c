@@ -100,8 +100,8 @@ int main(int argc, char * argv[])
         // Read processes from the process list (hardcoded for now)
         process_data process_list[] = {
             {1, 0, 5, 1, 0},
-            {2, 1, 3, 2, 0},
-            {3, 2, 4, 3, 0},
+            {2, 0, 3, 2, 0},
+            {3, 0, 4, 3, 0},
             {4, 3, 2, 4, 0},
             {5, 4, 1, 5, 0}
         };
@@ -120,11 +120,11 @@ int main(int argc, char * argv[])
                 
                 ProcessMessage msg;
                 msg.mtype = 1;  // Any positive number
+                int processes_sent = 0; // Track if any processes were sent
                 
                 // Check if we have a process arriving at this time
-                if (next_process_idx < num_processes && 
-                    process_list[next_process_idx].arrival_time == current_time) {
-                    
+                while (next_process_idx < num_processes && 
+                       process_list[next_process_idx].arrival_time == current_time) {
                     // Process arrives at this tick
                     msg.process_id = process_list[next_process_idx].id;
                     msg.arrival_time = process_list[next_process_idx].arrival_time;
@@ -133,9 +133,15 @@ int main(int argc, char * argv[])
                     
                     printf("Sending process %d to scheduler at time %d\n", msg.process_id, current_time);
                     
+                    if (msgsnd(msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+                        perror("Error sending process message");
+                    }
+                    
                     next_process_idx++;
+                    processes_sent++;
                 }
-                else if (next_process_idx >= num_processes) {
+                
+                if (next_process_idx >= num_processes) {
                     // All processes have been sent, signal completion
                     msg.process_id = -2;  // Termination signal
                     msg.arrival_time = 0;
@@ -150,16 +156,19 @@ int main(int argc, char * argv[])
                     
                     break;  // Exit the loop
                 }
-                else {
-                    // No process at this tick
+                // No need to send -1 if processes were sent
+                // Only send -1 if no processes arrived this tick
+                else if (processes_sent == 0) {
                     msg.process_id = -1;  // No process this tick
                     msg.arrival_time = 0;
                     msg.runtime = 0;
                     msg.priority = 0;
-                }
-                
-                if (msgsnd(msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
-                    perror("Error sending message");
+                    
+                    printf("No processes at time %d, sending -1\n", current_time);
+                    
+                    if (msgsnd(msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+                        perror("Error sending no-process message");
+                    }
                 }
             }
             
@@ -189,11 +198,13 @@ void clear_resources(int signum)
     if (msgq_id != -1) {
         msgctl(msgq_id, IPC_RMID, NULL);
     }
-    
+    printf("Message queue removed\n");
     // Kill scheduler if it exists
     if (scheduler_pid > 0) {
         kill(scheduler_pid, SIGINT);
     }
+    printf("after removeing scheduler\n");
+
     
     // Clean up clock resources
     destroy_clk(0);

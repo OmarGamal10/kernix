@@ -1,6 +1,7 @@
 #pragma once
 #include "stdlib.h"
 #include "stdio.h"
+#include <stdbool.h>
 
 
 
@@ -23,3 +24,4 @@ void *getMin (MinHeap*min_h);
 void minHeapify(MinHeap *min_h, int ind);
 void printHeap(MinHeap*min_h);
 void destroyHeap(MinHeap*min_h);
+// int isEmpty(void ** min_h);

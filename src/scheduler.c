@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include <errno.h> // Ensure this is included
 
 
 int algorithm;          
@@ -10,9 +11,10 @@ PCB** processes;
 int process_count = 0;   
 int max_processes = 100; //should perhaps be a parameter
 PCB* running_process = NULL; 
-int current_time = 0;   
+int current_time = -1;   
 int time_slice = 0;      
-int terminated = 0;     
+int terminated = 0;    
+bool process_not_arrived = true; 
 
 
 int main(int argc, char* argv[]) {
@@ -101,7 +103,7 @@ void initialize(int alg, int q) {
     }
     
     sync_clk();
-    current_time = get_clk();
+    //current_time = get_clk();
     
     printf("Scheduler initialized successfully\n");
 }
@@ -146,54 +148,110 @@ void run_scheduler() {
 }
 
 // Check for newly arrived processes from the message queue
+
 void check_arrivals() {
     ProcessMessage msg;
-    
-    // Try to receive a message (this always blocks, recieves -1 if no message)
-    if (msgrcv(msgq_id, &msg, sizeof(msg) - sizeof(long), 0, !IPC_NOWAIT) != -1) {
-        if (msg.process_id == -2) {
-            printf("Received termination signal\n");
-            terminated = 1;
-            return;
+    int processes_received = 0; // Track processes received this tick
+
+    // Only check messages if we expect new processes
+    if (process_not_arrived) {
+        while (true) {
+            // Blocking msgrcv to wait for a message
+            ssize_t received = msgrcv(msgq_id, &msg, sizeof(msg) - sizeof(long), 0, 0);
+            if (received == -1) {
+                perror("Error receiving message");
+                return;
+            }
+
+            if (msg.process_id == -2) {
+                printf("Received no more processes signal at time %d\n", current_time);
+                process_not_arrived = false;
+                if (running_process == NULL && Empty(readyQueue)) {
+                    terminated = true;
+                }
+                return; // Done for this tick
+            }
+            else if (msg.process_id == -1) {
+                // No process this tick, only exit if no processes were received
+                if (processes_received == 0) {
+                    printf("No processes at time %d\n", current_time);
+                    return;
+                }
+                // Otherwise, continue checking for more process messages
+                continue;
+            }
+
+            // Handle new process
+            PCB* new_process = (PCB*)malloc(sizeof(PCB));
+            if (!new_process) {
+                perror("Failed to allocate memory for PCB");
+                continue;
+            }
+
+            new_process->id = msg.process_id;
+            new_process->arrival_time = msg.arrival_time;
+            new_process->runtime = msg.runtime;
+            new_process->remaining_time = msg.runtime;
+            new_process->priority = msg.priority;
+            new_process->pid = -1;
+            new_process->wait_time = 0;
+            new_process->start_time = -1;
+            new_process->status = READY;
+
+            // Add to processes array
+            if (process_count < max_processes) {
+                processes[process_count++] = new_process;
+            } else {
+                fprintf(stderr, "Max processes exceeded\n");
+                free(new_process);
+                continue;
+            }
+
+            // Add to ready queue
+            switch (algorithm) {
+                case HPF:
+                    insertMinHeap(readyQueue, new_process);
+                    break;
+                case SRTN:
+                    insertMinHeap(readyQueue, new_process);
+                    break;
+                case RR:
+                    enqueue(readyQueue, new_process);
+                    break;
+            }
+
+            printf("Process %d arrived at time %d\n", new_process->id, current_time);
+            log_process_state(new_process, "arrived");
+            processes_received++;
+
+            // Peek at the next message non-blocking
+            received = msgrcv(msgq_id, &msg, sizeof(msg) - sizeof(long), 0, IPC_NOWAIT);
+            if (received == -1) {
+                if (errno == ENOMSG) {
+                    // No more messages, exit
+                    return;
+                } else {
+                    perror("Error peeking at message");
+                    return;
+                }
+            }
+
+            // Re-send the peeked message
+            if (msgsnd(msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+                perror("Error re-sending message");
+                return;
+            }
+
+            // If the next message is not a process message, exit
+            if (msg.process_id <= 0) {
+                return;
+            }
         }
-        else if (msg.process_id == -1) {
-            // No new process this tick
-            return;
-        }
-        
-        PCB* new_process = (PCB*)malloc(sizeof(PCB));
-        if (!new_process) {
-            perror("Failed to allocate memory for PCB");
-            return;
-        }
-        
-        new_process->id = msg.process_id;
-        new_process->arrival_time = msg.arrival_time;
-        new_process->runtime = msg.runtime;
-        new_process->remaining_time = msg.runtime;
-        new_process->priority = msg.priority;
-        new_process->pid = -1;  // Will be set when forked
-        new_process->wait_time = 0;
-        new_process->start_time = -1; // Not started yet
-        new_process->status = READY;
-        
-        processes[process_count++] = new_process;
-        
-        //readyqueue.add wkhlas, but i won't do them tbh
-        switch(algorithm) {
-            case HPF:
-            insertMinHeap(readyQueue, new_process);
-                break;
-            case SRTN:
-            insertMinHeap(readyQueue, new_process);
-                break;
-            case RR:
-                enqueue(readyQueue, new_process);
-                break;
-        }
-        
-        printf("Process %d arrived at time %d\n", new_process->id, current_time);
-        log_process_state(new_process, "arrived");
+    }
+
+    // Update termination condition
+    if (!process_not_arrived && running_process == NULL && Empty(readyQueue)) {
+        terminated = true;
     }
 }
 
@@ -277,7 +335,7 @@ PCB* select_next_process() {
         time_slice = 0;
         
         // Get next process from queue if available
-        if (!isEmpty(readyQueue)) {
+        if (!Empty(readyQueue)) {
             next = (PCB *)dequeue(readyQueue);
         }
         
@@ -291,7 +349,7 @@ PCB* select_next_process() {
                 return running_process;
                 
             case SRTN:
-                if (!isEmpty(readyQueue)){
+                if (!Empty(readyQueue)){
                     PCB* top = getMin(readyQueue);
                     if (top && top->remaining_time < running_process->remaining_time) {
                         // Preempt current process
@@ -313,13 +371,13 @@ PCB* select_next_process() {
     switch(algorithm) {
         case HPF:
         case SRTN:
-            if (!isEmpty(readyQueue)){
+            if (!Empty(readyQueue)){
                 return (PCB *)extractMin(readyQueue);
             }
             break;
                 
         case RR:
-            if (!isEmpty(readyQueue)) {
+            if (!Empty(readyQueue)) {
                 return (PCB *)dequeue(readyQueue);
             }
             break;
@@ -428,4 +486,16 @@ void cleanup() {
     destroy_clk(0);
     
     exit(0);
+}
+
+int Empty(void ** RQ){
+    if (algorithm == RR)
+    {
+        Queue * q = (Queue*)RQ;
+        return q->size == 0;
+    }
+    else{
+        MinHeap * mh = (MinHeap*)RQ;
+        return mh->size == 0;
+    }
 }

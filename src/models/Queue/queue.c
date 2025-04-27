@@ -20,8 +20,11 @@ Queue* createQueue() {
   return queue;
 }
 
-int isEmpty(Queue* queue) {
-  return queue->size == 0;
+int isEmpty(void** queue) {
+  Queue* q = (Queue*)queue;
+  if(q == NULL)
+    return 1;
+  return q->size == 0;
 }
 
 int getSize(Queue* queue) {
