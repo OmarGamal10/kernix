@@ -132,8 +132,7 @@ int main(int argc, char * argv[])
          
          
          // Read processes from the process list (hardcoded for now)
-         
-         int num_processes = sizeof(process_list) / sizeof(process_list[0]);
+
          int next_process_idx = 0;
          int current_time = -1;  // Initialize to ensure first tick is processed
          
