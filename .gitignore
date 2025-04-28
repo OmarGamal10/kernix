@@ -55,5 +55,10 @@ src/bin
 src/obj
 .vscode
 
-scheduler.log
+keyfile
+
+# Project output files
+processes.txt
+src/scheduler.log
+src/scheduler.perf
 keyfile

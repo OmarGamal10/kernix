@@ -21,13 +21,11 @@ int time_slice = 0;
 int terminated = 0;  
 int KEY = 300;   
 int process_not_arrived = 1; // Flag to indicate if there is a processes that haven't arrived
-// int shm_id;
 
 int TA_Array[100];
 double WTA_Array[100];
 double waiting = 0;
 
-// int *current_shm_ptr = NULL; // Pointer to shared memory for current process
 
 void initialize(int alg, int q) {
     algorithm = alg;
@@ -58,7 +56,7 @@ void initialize(int alg, int q) {
     }
     
     
-    // Create log file (placeholder, i don't use it yet)
+    // Create log file
     logFile = fopen("scheduler.log", "w");
     if (!logFile) {
         perror("Failed to open log file");
@@ -84,7 +82,6 @@ void initialize(int alg, int q) {
     }
     
     sync_clk();
-    //current_time = get_clk();
     
     printf("Scheduler initialized successfully\n");
 }
@@ -116,7 +113,7 @@ void run_scheduler() {
                 }
             }
 
-            // Update times and check for finished processes
+            // Update process times
             update_process_times();
             
         }
@@ -150,7 +147,6 @@ void check_arrivals() {
             else if (msg.process_id == -1) {
                 // No process this tick, only exit if no processes were received
                 if (processes_received == 0) {
-                    printf("No processes at time %d\n", current_time);
                     return;
                 }
                 // Otherwise, continue checking for more process messages
@@ -181,12 +177,8 @@ void check_arrivals() {
                 free(new_process);
                 continue;
             }
-            // printf("Scheduler attached to shared memory in scheduler %d for process %d\n", *shm_ptr, new_process->id);
-            // *shm_ptr = new_process->remaining_time; // Initialize shared memory with remaining time
 
             new_process->shm_ptr = shm_ptr; // Store the pointer to shared memory
-
-            
 
 
             // Add to processes array
@@ -215,7 +207,6 @@ void check_arrivals() {
             received = msgrcv(arr_msgq_id, &msg, sizeof(msg) - sizeof(long), 0, 0);
             if (received == -1) {
                 if (errno == ENOMSG) {
-                    printf("No more messages in queue\n");
                     // No more messages, exit
                     return;
                 } else {
@@ -261,12 +252,11 @@ void update_process_times() {
 void handle_finished_process() {
     if (running_process && running_process->remaining_time <= 0) {
         CompletionMessage msg;
-        printf("Process %d finished at time %d\n", running_process->id, current_time);
         if(msgrcv(comp_msgq_id, &msg, sizeof(msg) - sizeof(long), 0, !IPC_NOWAIT) == -1) {
             perror("Error receiving completion message");
         }
         if(msg.mtype == 1 && msg.process_id == running_process->pid)
-        printf("Process %d completed at time %d\n", running_process->id, current_time);
+        printf("Received the Process Generator message Process %d completed at time %d\n", running_process->id, current_time);
         running_process->ending_time = current_time;
         log_process_state(running_process, "finished");
         
@@ -385,18 +375,19 @@ void start_process(PCB* process) {
         process->wait_time = current_time - process->arrival_time;
         
         // Update shared memory with current remaining time
-        printf("shared memory pointer in scheduler %d\n", process->shm_ptr);
-        printf("shared memory value in scheduler %d\n", *process->shm_ptr);
         *(process->shm_ptr) = process->remaining_time;
         
+        printf("Starting process %d (PID: %d) at time %d\n", process->id, process->pid, current_time);
         // No need to fork as the process is already running
         log_process_state(process, "started");
     } else {
         // Resume the process
         *(process->shm_ptr) = process->remaining_time;
+        printf("Resuming process %d (PID: %d) at time %d\n", process->id, process->pid, current_time);
         process->status = RUNNING;
         log_process_state(process, "resumed");
     }
+
     kill(process->pid, SIGCONT);
 
     time_slice = 0;
@@ -462,7 +453,6 @@ void log_performance_stats() {
     printf("WTA_SUM: %f && process count: %d\n", WTA_sum, static_process_count);
     WTA_AVG = round(WTA_AVG * 100) /100;
     fprintf(perfLogFile, "Avg WTA = %.2f\n", WTA_AVG);
-    PCB* curr = PCB_table_head;
     double ans = waiting / static_process_count;
     fprintf(perfLogFile, "Avg Waiting = %.2f\n", ans);
     double diffSquared = 0;
@@ -474,7 +464,6 @@ void log_performance_stats() {
 
 void PCB_add(PCB* process) {
     if (!process) return;
-    printf("Adding process %d to PCB table\n", process->id);
     
     if (PCB_table_head == NULL) {
         PCB_table_head = process;
@@ -491,7 +480,6 @@ void PCB_add(PCB* process) {
 
 void PCB_remove(PCB* process) {
     if (!PCB_table_head || !process) return;
-    printf("Removing process %d from PCB table\n", process->id);
     waiting += process->wait_time;
     
     // Clean up shared memory resources BEFORE freeing the PCB

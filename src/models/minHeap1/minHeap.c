@@ -127,9 +127,3 @@ void destroyHeap(MinHeap *min_h)
     free(min_h); // Free the heap structure
 }
 
-// int isEmpty(void ** min_h){
-//     MinHeap* mh = (MinHeap*)min_h;
-//     if (mh == NULL) // Check if the heap is NULL
-//         return 1; // Return true if NULL
-//     return mh->size == 0; // Return true if size is 0
-// }
