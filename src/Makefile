@@ -28,24 +28,24 @@ CLK_OBJ         = $(OBJ_DIR)/clk.o
 SCHEDULER_OBJ   = $(OBJ_DIR)/scheduler.o
 PROCESS_GEN_OBJ = $(OBJ_DIR)/process_generator.o
 PROCESS_OBJ     = $(OBJ_DIR)/process.o
-QUEUE_OBJ       = $(OBJ_DIR)/$(MODELS_DIR)/Queue/queue.o
-MINHEAP_OBJ     = $(OBJ_DIR)/$(MODELS_DIR)/minHeap1/minHeap.o
+QUEUE_OBJ       = $(OBJ_DIR)/queue.o
+MINHEAP_OBJ     = $(OBJ_DIR)/minheap.o
 
 .PHONY: all clean keyfile setup
 
 # Default target - build all executables
-all: setup $(PROCESS_GENERATOR) $(SCHEDULER) $(PROCESS) keyfile
+all: setup $(PROCESS_GENERATOR) $(PROCESS) keyfile
 
 # Create necessary directories
 setup:
-	@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(OBJ_DIR)/$(MODELS_DIR)/Queue $(OBJ_DIR)/$(MODELS_DIR)/minHeap1
+	@mkdir -p $(OBJ_DIR) $(BIN_DIR)
 
 # Create keyfile for IPC
 keyfile:
 	@touch keyfile
 
-# Build process_generator
-$(PROCESS_GENERATOR): $(PROCESS_GEN_OBJ) $(CLK_OBJ)
+# Build process_generator - must include scheduler objects
+$(PROCESS_GENERATOR): $(PROCESS_GEN_OBJ) $(CLK_OBJ) $(SCHEDULER_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Build scheduler
@@ -65,7 +65,7 @@ $(SCHEDULER_OBJ): $(SCHEDULER_SRC) $(SRC_DIR)/scheduler.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile process_generator.c
-$(PROCESS_GEN_OBJ): $(PROCESS_GEN_SRC) $(SRC_DIR)/clk.h
+$(PROCESS_GEN_OBJ): $(PROCESS_GEN_SRC) $(SRC_DIR)/clk.h $(SRC_DIR)/scheduler.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile process.c
