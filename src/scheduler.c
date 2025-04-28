@@ -3,8 +3,9 @@
 
 
 int algorithm;          
-int quantum;             
-int msgq_id;             
+int quantum;   
+int arr_msgq_id;
+int comp_msgq_id;          
 FILE* logFile;          
 void* readyQueue;        
 int max_processes = 100;
@@ -22,42 +23,42 @@ int process_not_arrived = 1; // Flag to indicate if there is a processes that ha
 // int *current_shm_ptr = NULL; // Pointer to shared memory for current process
 
 
-int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <algorithm> [quantum]\n", argv[0]);
-        fprintf(stderr, "  algorithm: 1=HPF, 2=SRTN, 3=RR\n");
-        fprintf(stderr, "  quantum: required for RR algorithm\n");
-        exit(1);
-    }
+// int main(int argc, char* argv[]) {
+//     if (argc < 2) {
+//         fprintf(stderr, "Usage: %s <algorithm> [quantum]\n", argv[0]);
+//         fprintf(stderr, "  algorithm: 1=HPF, 2=SRTN, 3=RR\n");
+//         fprintf(stderr, "  quantum: required for RR algorithm\n");
+//         exit(1);
+//     }
     
-    algorithm = atoi(argv[1]);
+//     algorithm = atoi(argv[1]);
     
-    if (algorithm < 1 || algorithm > 3) {
-        fprintf(stderr, "Invalid algorithm. Must be 1 (HPF), 2 (SRTN), or 3 (RR)\n");
-        exit(1);
-    }
+//     if (algorithm < 1 || algorithm > 3) {
+//         fprintf(stderr, "Invalid algorithm. Must be 1 (HPF), 2 (SRTN), or 3 (RR)\n");
+//         exit(1);
+//     }
     
-    quantum = 0;
-    if (algorithm == RR) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: RR algorithm requires quantum parameter\n");
-            exit(1);
-        }
-        quantum = atoi(argv[2]);
-        if (quantum <= 0) {
-            fprintf(stderr, "Error: Quantum must be a positive integer\n");
-            exit(1);
-        }
-    }
+//     quantum = 0;
+//     if (algorithm == RR) {
+//         if (argc < 3) {
+//             fprintf(stderr, "Error: RR algorithm requires quantum parameter\n");
+//             exit(1);
+//         }
+//         quantum = atoi(argv[2]);
+//         if (quantum <= 0) {
+//             fprintf(stderr, "Error: Quantum must be a positive integer\n");
+//             exit(1);
+//         }
+//     }
     
-    initialize(algorithm, quantum);
+//     initialize(algorithm, quantum);
     
-    run_scheduler();
+//     run_scheduler();
     
-    cleanup();
+//     cleanup();
     
-    return 0;
-}
+//     return 0;
+// }
 
 void initialize(int alg, int q) {
     algorithm = alg;
@@ -90,16 +91,20 @@ void initialize(int alg, int q) {
     fprintf(logFile, "#At time x process y state arr w total z remain y wait k\n");
     
 
-    key_t key = ftok("keyfile", 'a');
-    if (key == -1) {
-        perror("Error in ftok");
-        exit(1);
+    // Open arrival message queue
+    key_t arr_key = ftok("keyfile", 'a');
+    arr_msgq_id = msgget(arr_key, 0666);
+    if (arr_msgq_id == -1) {
+        perror("Error accessing arrival message queue");
+        return -1;
     }
     
-    msgq_id = msgget(key, 0666); // this should be read-only for the scheduler
-    if (msgq_id == -1) {
-        perror("Error accessing message queue");
-        exit(1);
+    // Open completion message queue
+    key_t comp_key = ftok("keyfile", 'c');
+    comp_msgq_id = msgget(comp_key, 0666);
+    if (comp_msgq_id == -1) {
+        perror("Error accessing completion message queue");
+        return -1;
     }
     
     sync_clk();
@@ -136,17 +141,7 @@ void run_scheduler() {
             }
 
             // Update times and check for finished processes
-            if (running_process) {
-
-                //decrement this first, the shared memory is the source of truth to the process running
-                // (*current_shm_ptr)--;
-                //then decrement local data in PCB
-                running_process->remaining_time--;
-                
-                if (algorithm == RR) {
-                    time_slice++;
-                }
-            }
+            update_process_times();
             
         }
     }
@@ -157,12 +152,11 @@ void run_scheduler() {
 void check_arrivals() {
     ProcessMessage msg;
     int processes_received = 0; // Track processes received this tick
-
     // Only check messages if we expect new processes
     if (process_not_arrived) {
         while (true) {
             // Blocking msgrcv to wait for a message
-            ssize_t received = msgrcv(msgq_id, &msg, sizeof(msg) - sizeof(long), 0, 0);
+            ssize_t received = msgrcv(arr_msgq_id, &msg, sizeof(msg) - sizeof(long), 0, 0);
             if (received == -1) {
                 perror("Error receiving message");
                 return;
@@ -192,16 +186,31 @@ void check_arrivals() {
                 perror("Failed to allocate memory for PCB");
                 continue;
             }
-
             new_process->id = msg.process_id;
             new_process->arrival_time = msg.arrival_time;
             new_process->runtime = msg.runtime;
             new_process->remaining_time = msg.runtime;
             new_process->priority = msg.priority;
-            new_process->pid = -1;
+            new_process->pid = msg.pid;         // Get the PID from the message
+            new_process->shm_id = msg.shm_id;   // Get the shared memory ID from the message
             new_process->wait_time = 0;
             new_process->start_time = -1;
             new_process->status = READY;
+
+            // Attach to the shared memory
+            int* shm_ptr = (int *)shmat(msg.shm_id, NULL, 0);
+            if (new_process->shm_ptr == (int *)-1) {
+                perror("Failed to attach to shared memory in scheduler");
+                free(new_process);
+                continue;
+            }
+            // printf("Scheduler attached to shared memory in scheduler %d for process %d\n", *shm_ptr, new_process->id);
+            // *shm_ptr = new_process->remaining_time; // Initialize shared memory with remaining time
+
+            new_process->shm_ptr = shm_ptr; // Store the pointer to shared memory
+
+            
+
 
             // Add to processes array
             PCB_add(new_process);
@@ -224,9 +233,10 @@ void check_arrivals() {
             processes_received++;
 
             // Peek at the next message non-blocking
-            received = msgrcv(msgq_id, &msg, sizeof(msg) - sizeof(long), 0, IPC_NOWAIT);
+            received = msgrcv(arr_msgq_id, &msg, sizeof(msg) - sizeof(long), 0, 0);
             if (received == -1) {
                 if (errno == ENOMSG) {
+                    printf("No more messages in queue\n");
                     // No more messages, exit
                     return;
                 } else {
@@ -234,20 +244,23 @@ void check_arrivals() {
                     return;
                 }
             }
-
             // Re-send the peeked message
-            if (msgsnd(msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+            if (msgsnd(arr_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
                 perror("Error re-sending message");
                 return;
             }
-
+            
             // If the next message is not a process message, exit
             if (msg.process_id <= 0) {
                 return;
             }
+            if(msg.arrival_time != current_time) {
+                // If the next message is not for the current time, exit
+                return;
+            }
         }
     }
-
+    
     // Update termination condition
     if (!process_not_arrived && running_process == NULL && Empty(readyQueue)) {
         terminated = true;
@@ -256,8 +269,9 @@ void check_arrivals() {
 
 // Update times for the running process
 void update_process_times() {
-    if (running_process) {
+    if (running_process && running_process->remaining_time > 0) {
         running_process->remaining_time--;
+        *(running_process->shm_ptr) = running_process->remaining_time; // Update shared memory
         
         if (algorithm == RR) {
             time_slice++;
@@ -267,13 +281,14 @@ void update_process_times() {
 
 void handle_finished_process() {
     if (running_process && running_process->remaining_time <= 0) {
+        CompletionMessage msg;
+        printf("Process %d finished at time %d\n", running_process->id, current_time);
+        if(msgrcv(comp_msgq_id, &msg, sizeof(msg) - sizeof(long), 0, !IPC_NOWAIT) == -1) {
+            perror("Error receiving completion message");
+        }
+        if(msg.mtype == 1 && msg.process_id == running_process)
         printf("Process %d completed at time %d\n", running_process->id, current_time);
         log_process_state(running_process, "finished");
-        
-        if (running_process->pid > 0) {
-            int status;
-            waitpid(running_process->pid, &status, 0);
-        }
         
         PCB_remove(running_process);
         
@@ -388,46 +403,19 @@ void start_process(PCB* process) {
         // First time starting this process
         process->start_time = current_time;
         process->wait_time = current_time - process->arrival_time;
-
-        // Create a unique shared memory segment for this process
-        int shm_id = shmget(IPC_PRIVATE, sizeof(int), 0666 | IPC_CREAT);
-        if (shm_id == -1) {
-            perror("Failed to create shared memory for process");
-            exit(1);
-        }
-        int *proc_shm_ptr = (int *)shmat(shm_id, NULL, 0);
-        if (proc_shm_ptr == (int *)-1) {
-            perror("Failed to attach shared memory for process");
-            exit(1);
-        }
-        *proc_shm_ptr = process->remaining_time;
-        process->shm_id = shm_id;         // Add shm_id to PCB struct
-        process->shm_ptr = proc_shm_ptr;  // Add shm_ptr to PCB struct
-
-        pid_t pid = fork();
-        if (pid == -1) {
-            perror("Failed to fork process");
-            exit(1);
-        } else if (pid == 0) {
-            // Child process
-            char runtime_str[20], id_str[20], shm_id_str[20];
-            sprintf(runtime_str, "%d", process->runtime);
-            sprintf(id_str, "%d", process->id);
-            sprintf(shm_id_str, "%d", shm_id);
-            execl("./bin/process", "process", runtime_str, id_str, shm_id_str, NULL);
-            perror("Failed to exec process");
-            exit(1);
-        } else {
-            process->pid = pid;
-            log_process_state(process, "started");
-        }
+        
+        // Update shared memory with current remaining time
+        *(process->shm_ptr) = process->remaining_time;
+        
+        // No need to fork as the process is already running
+        log_process_state(process, "started");
     } else {
-        // Resume logic (if needed)
-        *process->shm_ptr = process->remaining_time;
-        kill(process->pid, SIGCONT);
+        // Resume the process
+        *(process->shm_ptr) = process->remaining_time;
         process->status = RUNNING;
         log_process_state(process, "resumed");
     }
+    kill(process->pid, SIGCONT);
 
     time_slice = 0;
 }
@@ -478,10 +466,19 @@ void PCB_remove(PCB* process) {
     if (!PCB_table_head || !process) return;
     printf("Removing process %d from PCB table\n", process->id);
     
+    // Clean up shared memory resources BEFORE freeing the PCB
+    if (process->shm_ptr != (int *)-1 && process->shm_ptr != NULL) {
+        shmdt(process->shm_ptr);  // Detach from shared memory
+    }
+    
+    if (process->shm_id > 0) {
+        shmctl(process->shm_id, IPC_RMID, NULL);  // Mark shared memory for removal
+    }
+    
+    // Continue with existing PCB removal logic
     if (PCB_table_head == process) {
         PCB_table_head = process->next;
         
-        // If we removed the only element, update tail
         if (PCB_table_tail == process) {
             PCB_table_tail = NULL;
         }
@@ -491,16 +488,13 @@ void PCB_remove(PCB* process) {
             current = current->next;
         }
         
-        // If process was found in the list
         if (current) {
             current->next = process->next;
             
-            // If we removed the tail, update tail pointer
             if (PCB_table_tail == process) {
                 PCB_table_tail = current;
             }
         } else {
-            // Process not found in list, don't free or decrement
             return;
         }
     }
@@ -515,10 +509,26 @@ void cleanup() {
     if (logFile) {
         fclose(logFile);
     }
+    
+    // Clean up running process if it exists
+    if (running_process) {
+        PCB_remove(running_process);
+        running_process = NULL;
+    }
+    
+    // Clean up all remaining PCBs
     PCB* current = PCB_table_head;
-
     while(current) {
         PCB* next = current->next;
+        
+        // Double-check shared memory cleanup
+        if (current->shm_ptr != (int *)-1 && current->shm_ptr != NULL) {
+            shmdt(current->shm_ptr);
+        }
+        if (current->shm_id > 0) {
+            shmctl(current->shm_id, IPC_RMID, NULL);
+        }
+        
         free(current);
         current = next;
     }
@@ -535,7 +545,6 @@ void cleanup() {
     }
     
     destroy_clk(0);
-    
     exit(0);
 }
 

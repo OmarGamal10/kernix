@@ -40,7 +40,7 @@ void init_clk()
         perror("Error in creating shm!");
         exit(-1);
     }
-    int *shmaddr = (int *)shmat(shmid, (void *)0, 0);
+    shmaddr = (int *)shmat(shmid, (void *)0, 0);
     if ((long)shmaddr == -1)
     {
         perror("Error in attaching the shm in clock!");
@@ -53,7 +53,7 @@ void run_clk()
 {
     while (1)
     {
-        sleep(1);
+        sleep(2);
         (*shmaddr)++;
     }
 }
