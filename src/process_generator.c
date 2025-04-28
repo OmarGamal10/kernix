@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <unistd.h>    // for fork, execl
-#include <sys/types.h> // for pid_t
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include "clk.h"
 #include "scheduler.h"
@@ -27,51 +27,38 @@ typedef struct
     int completed;
 } process_data;
 
-int processCount = 0; // Number of processes in the list
+int processCount = 0;
 
-// global variables for cleanup
 int arrG_msgq_id = -1;
 int compG_msgq_id = -1;
 
 pid_t scheduler_pid = -1;
 void sigchld_handler(int sig)
 {
-    int saved_errno = errno; // Save errno to restore it later
+    int saved_errno = errno;
     pid_t pid;
     int status;
 
-    // Use waitpid with WNOHANG to collect all terminated children
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {
-        // Check if the child actually exited (not stopped or continued)
         if (WIFEXITED(status))
         {
-            printf("Child %d exited with status %d\n", pid, WEXITSTATUS(status));
-            // Handle child exit here
             notifySchedulerFinishedProcess(pid);
         }
-        else if (WIFSIGNALED(status))
-        {
-            printf("Child %d killed by signal %d\n", pid, WTERMSIG(status));
-            // Handle child terminated by signal
-        }
-        // Ignore other cases (stopped, continued)
     }
 
-    errno = saved_errno; // Restore errno
+    errno = saved_errno;
 }
 
 process_data process_list[MAX_PROCESSES];
 int main(int argc, char *argv[])
 {
     signal(SIGINT, clear_resources);
-
-    // Fork the clock process (parent is clock, child is generator)
     pid_t clk_pid = fork();
     struct sigaction sa;
     sa.sa_handler = sigchld_handler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP; // SA_NOCLDSTOP is key here
+    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
 
     if (sigaction(SIGCHLD, &sa, NULL) == -1)
     {
@@ -110,12 +97,10 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        // Get scheduling algorithm (default to HPF if not specified) // for testing
         char *algorithm = "hpf"; // Default: HPF
         int algoritm_type = 0;   // 1: HPF, 2: SRTN, 3: RR
         int quantum = 1;         // Default quantum for RR
 
-        printf("argcs count: %d\n", argc);
         if (argc != 7 && argc != 5)
         {
             printf("Invalid number of arguments\n");
@@ -127,13 +112,7 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        printf("argv[1]: %s\n", argv[1]);
-        printf("argv[2]: %s\n", argv[2]);
-        printf("argv[3]: %s\n", argv[3]);
-        printf("argv[4]: %s\n", argv[4]);
-
         algorithm = argv[2];
-
 
         if (strcmp(algorithm, "rr") == 0 && argc == 7 && strcmp(argv[3], "-q") == 0)
         { 
@@ -198,15 +177,14 @@ int main(int argc, char *argv[])
             initialize(algoritm_type, quantum);
             run_scheduler();
             cleanup();
-            exit(0); // Exit after cleanup
+            exit(0);
         }
 
         sync_clk();
 
         int next_process_idx = 0;
-        int current_time = -1; // Initialize to ensure first tick is processed
+        int current_time = -1;
 
-        // Wait for clock to reach 0 before starting
         while (get_clk() < 0)
         {
         }
@@ -215,17 +193,15 @@ int main(int argc, char *argv[])
         {
             int new_time = get_clk();
 
-            // Only process once per tick
             if (new_time > current_time)
             {
                 current_time = new_time;
+                printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
                 printf("Generator tick at time %d\n", current_time);
 
                 ProcessMessage msg;
                 msg.mtype = 1;          // Any positive number
                 int processes_sent = 0; // Track if any processes were sent
-
-                // Check if we have a process arriving at this time
 
                 if (next_process_idx >= processCount)
                 {
@@ -235,6 +211,7 @@ int main(int argc, char *argv[])
                     msg.runtime = 0;
                     msg.priority = 0;
 
+                    printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
                     printf("All processes sent, sending termination signal\n");
 
                     if (msgsnd(arrG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
@@ -242,7 +219,7 @@ int main(int argc, char *argv[])
                         perror("Error sending termination message");
                     }
 
-                    break; // Exit the loop
+                    break;
                 }
 
                 while (next_process_idx < processCount &&
@@ -258,9 +235,6 @@ int main(int argc, char *argv[])
                     }
 
                     int *shm_ptr = (int *)shmat(shm_id, NULL, 0);
-                    printf("shared memory id %d\n", shm_id);
-                    printf("shared memory pointer %p\n", (void *)shm_ptr);
-                    printf("shared memory value %d\n", *shm_ptr);
                     if (shm_ptr == (void *)-1)
                     {
                         perror("Failed to attach shared memory");
@@ -269,9 +243,6 @@ int main(int argc, char *argv[])
                     }
 
                     *shm_ptr = process_list[next_process_idx].runtime; // Initialize shared memory with runtime
-                    printf("shared memory new value %d\n", *shm_ptr);
-                    // printf("Process %d (PID: %d) created shared memory %d\n",
-                    //        process_list[next_process_idx].id, getpid(), *shm_ptr);
 
                     // Fork the process
                     pid_t process_pid = fork();
@@ -286,7 +257,6 @@ int main(int argc, char *argv[])
 
                     if (process_pid == 0)
                     { // Child process
-                        // Execute the process binary
                         char runtime_str[20], id_str[20], shm_id_str[20];
                         sprintf(runtime_str, "%d", process_list[next_process_idx].runtime);
                         sprintf(id_str, "%d", process_list[next_process_idx].id);
@@ -299,11 +269,8 @@ int main(int argc, char *argv[])
                     }
 
                     kill(process_pid, SIGSTOP);
-                    // Store the process ID in the process list
                     process_list[next_process_idx].pid = process_pid;
-                    printf("Process %d (PID: %d) created and stopped\n", process_list[next_process_idx].id, process_pid);
 
-                    // Parent process - send message to scheduler
                     msg.process_id = process_list[next_process_idx].id;
                     msg.arrival_time = process_list[next_process_idx].arrival_time;
                     msg.runtime = process_list[next_process_idx].runtime;
@@ -311,26 +278,24 @@ int main(int argc, char *argv[])
                     msg.pid = process_pid;
                     msg.shm_id = shm_id;
 
-                    printf("Forked and sending process %d (PID: %d) to scheduler at time %d\n",
-                           msg.process_id, msg.pid, current_time);
+                    printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
+                    printf("Forked and sending process %d to scheduler at time %d\n",
+                           msg.process_id, current_time);
 
                     if (msgsnd(arrG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
                     {
                         perror("Error sending process message");
                     }
 
-                    // Detach from shared memory
                     shmdt(shm_ptr);
 
                     next_process_idx++;
                     processes_sent++;
                 }
 
-                // No need to send -1 if processes were sent
-                // Only send -1 if no processes arrived this tick
                 if (processes_sent == 0)
                 {
-                    msg.process_id = -1; // No process this tick
+                    msg.process_id = -1;
                     msg.arrival_time = 0;
                     msg.runtime = 0;
                     msg.priority = 0;
@@ -340,9 +305,7 @@ int main(int argc, char *argv[])
                         perror("Error sending no-process message");
                     }
                 }
-                //  check_completed_processes(process_list, num_processes);
             }
-
             usleep(1000);
         }
 
@@ -384,12 +347,12 @@ int read_processes(const char *filename, process_data process_list[])
                    &process_list[process_count].priority) == 4)
         {
 
-            // Initialize pid to 0
             process_list[process_count].pid = 0;
 
             process_count++;
             if (process_count >= MAX_PROCESSES)
             {
+                printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
                 printf("Warning: Maximum process limit (%d) reached. Ignoring remaining processes.\n", MAX_PROCESSES);
                 break;
             }
@@ -402,6 +365,7 @@ int read_processes(const char *filename, process_data process_list[])
 
 void display_processes(process_data process_list[], int count)
 {
+    printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
     printf("\nProcess List:\n");
     printf("ID\tArrival\tRuntime\tPriority\tPID\n");
     printf("------------------------------------------------\n");
@@ -416,31 +380,21 @@ void display_processes(process_data process_list[], int count)
                process_list[i].pid);
     }
 }
-// Function to check for completed processes
+
 void check_completed_processes(process_data *process_list, int num_processes)
 {
     for (int i = 0; i < num_processes; i++)
     {
-
-        // Skip processes not yet created or already completed
         if (process_list[i].pid <= 0 || process_list[i].completed)
             continue;
 
         int status;
         pid_t result = waitpid(process_list[i].pid, &status, WNOHANG);
-        printf(result == 0 ? "Process %d (PID: %d) is still running\n" : "Process %d (PID: %d) has status %d\n",
-               process_list[i].id, process_list[i].pid, result);
 
         if (result > 0)
         { // Process has terminated
-            // Mark the process as completed
             process_list[i].completed = 1;
-            printf("Process %d (PID: %d) completed with status %d\n",
-                   process_list[i].id, process_list[i].pid, WEXITSTATUS(status));
-            printf("Process %d (PID: %d) detected as completed\n",
-                   process_list[i].id, process_list[i].pid);
 
-            // Send completion message to scheduler via completion queue
             CompletionMessage msg;
             msg.mtype = 1;
             msg.process_id = process_list[i].id;
@@ -449,11 +403,6 @@ void check_completed_processes(process_data *process_list, int num_processes)
             if (msgsnd(compG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
             {
                 perror("Error sending completion message");
-            }
-            else
-            {
-                printf("Sent completion notification for process %d to scheduler\n",
-                       process_list[i].id);
             }
         }
     }
@@ -470,11 +419,6 @@ void notifySchedulerFinishedProcess(pid_t pid)
     {
         perror("Error sending completion message");
     }
-    else
-    {
-        printf("Sent completion notification for process %d to scheduler\n",
-               pid);
-    }
 }
 
 void clear_resources(int signum)
@@ -484,6 +428,7 @@ void clear_resources(int signum)
         return;
     already_cleaning = 1;
 
+    printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
     printf("Cleaning up resources...\n");
 
     // Remove message queue if it exists
@@ -491,18 +436,22 @@ void clear_resources(int signum)
     {
         msgctl(arrG_msgq_id, IPC_RMID, NULL);
     }
+    printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
     printf("Arrived Message queue removed\n");
 
     if (compG_msgq_id != -1)
     {
         msgctl(compG_msgq_id, IPC_RMID, NULL);
     }
+    printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
     printf("Completed Message queue removed\n");
+    
     // Kill scheduler if it exists
     if (scheduler_pid > 0)
     {
         kill(scheduler_pid, SIGINT);
     }
+    printf("\033[1;31m"); printf("[Process Generator] "); printf("\033[0m");
     printf("after removeing scheduler\n");
 
     // Clean up clock resources
