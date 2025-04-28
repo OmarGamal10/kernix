@@ -80,9 +80,7 @@ int main(int argc, char *argv[])
             printf("No processes to generate\n");
             exit(1);
         }
-
-        display_processes(process_list, processCount);
-
+        
         // Fork and execute the scheduler
         scheduler_pid = fork();
         if (scheduler_pid == -1)
