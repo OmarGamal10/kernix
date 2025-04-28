@@ -53,7 +53,7 @@ void run_clk()
 {
     while (1)
     {
-        sleep(2);
+        sleep(1);
         (*shmaddr)++;
     }
 }

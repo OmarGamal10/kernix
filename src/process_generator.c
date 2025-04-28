@@ -49,6 +49,7 @@ void sigchld_handler(int sig) {
         if (WIFEXITED(status)) {
             printf("Child %d exited with status %d\n", pid, WEXITSTATUS(status));
             // Handle child exit here
+            notifySchedulerFinishedProcess(pid);
         }
         else if (WIFSIGNALED(status)) {
             printf("Child %d killed by signal %d\n", pid, WTERMSIG(status));
@@ -139,8 +140,8 @@ int main(int argc, char * argv[])
              {1, 0, 5, 1, 0, 0},
              {2, 0, 3, 2, 0, 0},
              {3, 0, 4, 3, 0, 0},
-             {4, 3, 3, 4, 0, 0},
-             {5, 4, 1, 5, 0, 0}
+             {4, 0, 3, 4, 0, 0},
+             {5, 0, 1, 5, 0, 0}
          };
          int num_processes = sizeof(process_list) / sizeof(process_list[0]);
          int next_process_idx = 0;
@@ -318,6 +319,20 @@ void check_completed_processes(process_data* process_list, int num_processes) {
                        process_list[i].id);
             }
         }
+    }
+}
+
+void notifySchedulerFinishedProcess(pid_t pid){
+    CompletionMessage msg;
+    msg.mtype = 1;
+    msg.process_id = pid;
+    msg.finish_time = get_clk();
+    
+    if (msgsnd(compG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+        perror("Error sending completion message");
+    } else {
+        printf("Sent completion notification for process %d to scheduler\n", 
+               pid);
     }
 }
 

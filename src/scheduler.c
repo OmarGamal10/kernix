@@ -249,7 +249,7 @@ void handle_finished_process() {
         if(msgrcv(comp_msgq_id, &msg, sizeof(msg) - sizeof(long), 0, !IPC_NOWAIT) == -1) {
             perror("Error receiving completion message");
         }
-        if(msg.mtype == 1 && msg.process_id == running_process)
+        if(msg.mtype == 1 && msg.process_id == running_process->pid)
         printf("Process %d completed at time %d\n", running_process->id, current_time);
         log_process_state(running_process, "finished");
         

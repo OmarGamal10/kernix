@@ -18,10 +18,7 @@ void run_process(int runtime, int id, int *current_shm_ptr)
     while (remaining_time > 0)
     {
         remaining_time = *current_shm_ptr; // Get the remaining time from shared memory
-        // printf("Process with id %d is running at time %d, remaining time: %d\n", id, get_clk(), remaining_time);
-        sleep(.5);
-        //sleep(0.5); // Simulate process work
-        // it is decremented in the scheduler
+        
     }
     printf("Process with id %d finished at time %d,, in process\n", id, get_clk());
 }
