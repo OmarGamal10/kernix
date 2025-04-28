@@ -29,12 +29,16 @@ void initialize(int alg, int q) {
     
     signal(SIGINT, (void (*)(int))cleanup);
     
+    printf(algorithm == HPF ? "Using HPF algorithm\n" :
+           algorithm == SRTN ? "Using SRTN algorithm\n" :
+           algorithm == RR ? "Using RR algorithm\n" : "Unknown algorithm\n");
     switch(algorithm) {
         case HPF:
             readyQueue = createMinHeap(max_processes, compare_priority);
             printf("Scheduler started with Highest Priority First algorithm\n");
             break;
         case SRTN:
+            printf("Scheduler started with Shortest Remaining Time Next algorithm\n");
             readyQueue = createMinHeap(max_processes, compare_remaining_time);
             printf("Scheduler started with Shortest Remaining Time Next algorithm\n");
             break;
