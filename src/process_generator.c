@@ -102,15 +102,22 @@ int main(int argc, char * argv[])
         }
          
          // Get scheduling algorithm (default to HPF if not specified) // for testing
-         int algorithm = 1;  // Default: HPF
+         char* algorithm = "hpf";  // Default: HPF
+         int algoritm_type = 0; // 0: HPF, 1: SRTN, 2: RR
          int quantum = 1;    // Default quantum for RR
 
          printf("argcs count: %d\n", argc);
          
          if (argc > 1) {
-             algorithm = atoi(argv[1]);
-             if (algorithm == 3 && argc > 2) { // RR needs quantum
+             algorithm = argv[1];
+             printf("Algorithm: %s\n", algorithm);
+             printf(strcmp(algorithm,"rr") == 0 ? "RR algorithm selected\n" : "Not RR algorithm\n");
+             printf(strcmp(algorithm,"hpf") == 0 ? "HPF algorithm selected\n" : "Not HPF algorithm\n");
+
+                
+             if (strcmp(algorithm,"rr") == 0 && argc > 2) { // RR needs quantum
                  quantum = atoi(argv[2]);
+                 algoritm_type = 3; // RR
                  if(argc>3)
                  {
                     printf("test file: %s\n", argv[3]);
@@ -118,12 +125,28 @@ int main(int argc, char * argv[])
                     display_processes(process_list, processCount);
                  }
              }
-             else if((algorithm==1||algorithm==2) && argc>2)
-             {
-                printf("test file: %s\n", argv[2]);
-                processCount=read_processes(argv[2],process_list);
-                display_processes(process_list, processCount);
-             }
+                else if (strcmp(algorithm,"hpf") == 0) {
+                    printf("i entered here");
+                    algoritm_type = 1; // HPF
+                    printf("test file: %s\n", argv[2]);
+                    if(argc>2)
+                    {
+                        processCount=read_processes(argv[2],process_list);
+                        display_processes(process_list, processCount);
+                    }
+                    else{
+                        printf("Error: Invalid arguments\n");
+                        exit(1);
+                    }
+                }
+                else if (strcmp(algorithm,"srt") == 0) {
+                    algoritm_type = 2; // SRTN
+                    if(argc>2)
+                    {
+                        processCount=read_processes(argv[2],process_list);
+                        display_processes(process_list, processCount);
+                    }
+                }
              else
              {
                 printf("Error: Invalid arguments\n");
@@ -140,7 +163,7 @@ int main(int argc, char * argv[])
          
          if (scheduler_pid == 0) {
             // Scheduler process
-            initialize(algorithm, quantum);
+            initialize(algoritm_type, quantum);
             run_scheduler();
             cleanup();
             exit(0); // Exit after cleanup
