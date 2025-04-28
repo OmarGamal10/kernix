@@ -137,11 +137,11 @@ int main(int argc, char * argv[])
          
          // Read processes from the process list (hardcoded for now)
          process_data process_list[] = {
-             {1, 0, 5, 1, 0, 0},
-             {2, 0, 3, 2, 0, 0},
-             {3, 0, 4, 3, 0, 0},
-             {4, 0, 3, 4, 0, 0},
-             {5, 0, 1, 5, 0, 0}
+            {1, 0, 5, 1, 0},
+            {2, 0, 3, 2, 0},
+            {3, 0, 4, 3, 0},
+            {4, 3, 2, 4, 0},
+            {5, 4, 1, 5, 0}
          };
          int num_processes = sizeof(process_list) / sizeof(process_list[0]);
          int next_process_idx = 0;

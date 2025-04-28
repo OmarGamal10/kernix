@@ -40,6 +40,7 @@ struct PCB {
     struct PCB* next;
     int shm_id;      
     int *shm_ptr;    
+    int ending_time;
 };
 
 typedef struct PCB PCB; // Forward declaration for PCB
@@ -73,7 +74,7 @@ void check_arrivals();
 void start_process(PCB* process);
 void stop_process(PCB* process);
 void log_process_state(PCB* process, char* state);
-
+void log_performance_stats();
 
 int compare_priority(void* a, void* b);
 int compare_remaining_time(void* a, void* b);

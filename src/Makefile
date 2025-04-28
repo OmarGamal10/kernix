@@ -3,6 +3,7 @@
 # Compiler and flags
 CC = gcc
 CFLAGS = -Wall -g -I.
+LDFLAGS = -lm
 
 # Directories
 SRC_DIR    = .
@@ -46,15 +47,15 @@ keyfile:
 
 # Build process_generator - must include scheduler objects
 $(PROCESS_GENERATOR): $(PROCESS_GEN_OBJ) $(CLK_OBJ) $(SCHEDULER_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Build scheduler
 $(SCHEDULER): $(SCHEDULER_OBJ) $(CLK_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Build process
 $(PROCESS): $(PROCESS_OBJ) $(CLK_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Compile clk.c
 $(CLK_OBJ): $(CLK_SRC) $(SRC_DIR)/clk.h
