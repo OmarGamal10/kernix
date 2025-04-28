@@ -26,7 +26,7 @@ typedef struct {
     int completed;
 } process_data;
 
-int process_count = 0; // Number of processes in the list
+int processCount = 0; // Number of processes in the list
 
 // global variables for cleanup
 int arrG_msgq_id = -1;
@@ -114,15 +114,15 @@ int main(int argc, char * argv[])
                  if(argc>3)
                  {
                     printf("test file: %s\n", argv[3]);
-                    process_count=read_processes(argv[3],process_list);
-                    display_processes(process_list, process_count);
+                    processCount=read_processes(argv[3],process_list);
+                    display_processes(process_list, processCount);
                  }
              }
              else if((algorithm==1||algorithm==2) && argc>2)
              {
                 printf("test file: %s\n", argv[2]);
-                process_count=read_processes(argv[2],process_list);
-                display_processes(process_list, process_count);
+                processCount=read_processes(argv[2],process_list);
+                display_processes(process_list, processCount);
              }
              else
              {
@@ -175,7 +175,7 @@ int main(int argc, char * argv[])
                  // Check if we have a process arriving at this time
 
                 
-                 if (next_process_idx >= num_processes) {
+                 if (next_process_idx >= processCount) {
                     // All processes have been sent, signal completion
                     msg.process_id = -2;  // Termination signal
                     msg.arrival_time = 0;
@@ -191,7 +191,7 @@ int main(int argc, char * argv[])
                     break;  // Exit the loop
                 }
 
-                while (next_process_idx < num_processes && 
+                while (next_process_idx < processCount && 
                     process_list[next_process_idx].arrival_time <= current_time) {
                 
                 // Create shared memory for this process
@@ -349,7 +349,8 @@ void display_processes(process_data process_list[], int count) {
                process_list[i].runtime, 
                process_list[i].priority,
                process_list[i].pid);
-=======
+        }
+    }
 // Function to check for completed processes
 void check_completed_processes(process_data* process_list, int num_processes) {
     for (int i = 0; i < num_processes; i++) {
