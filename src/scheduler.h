@@ -22,10 +22,13 @@
 #define SRTN 2 // Shortest Remaining Time Next
 #define RR 3   // Round Robin
 
+#define MAX_PROCESSES 100
+
 // Process states
 #define READY 0    // Process is ready to run
 #define RUNNING 1  // Process is currently running
 #define FINISHED 3 // Process has finished execution
+
 
 // Process Control Block (PCB) structure
 struct PCB {
@@ -42,9 +45,11 @@ struct PCB {
     int shm_id;            // Shared memory ID
     int *shm_ptr;          // Pointer to shared memory
     int ending_time;       // Time when the process finished
+
 };
 
 typedef struct PCB PCB; // Typedef for easier usage of PCB
+
 
 // Message structure for process communication
 typedef struct {
@@ -85,5 +90,6 @@ int compare_remaining_time(void* a, void* b); // Compare processes by remaining 
 void PCB_remove(PCB* process);               // Remove a process from the list
 void PCB_add(PCB* process);                  // Add a process to the list
 int Empty(void* RQ);                        // Check if the ready queue is empty
+
 
 #endif /* SCHEDULER_H */
