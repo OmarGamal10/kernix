@@ -453,7 +453,6 @@ void log_performance_stats() {
     printf("WTA_SUM: %f && process count: %d\n", WTA_sum, static_process_count);
     WTA_AVG = round(WTA_AVG * 100) /100;
     fprintf(perfLogFile, "Avg WTA = %.2f\n", WTA_AVG);
-    PCB* curr = PCB_table_head;
     double ans = waiting / static_process_count;
     fprintf(perfLogFile, "Avg Waiting = %.2f\n", ans);
     double diffSquared = 0;
