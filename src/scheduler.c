@@ -70,7 +70,7 @@ void initialize(int alg, int q) {
     arr_msgq_id = msgget(arr_key, 0666);
     if (arr_msgq_id == -1) {
         perror("Error accessing arrival message queue");
-        return -1;
+        return ;
     }
     
     // Open completion message queue
@@ -78,7 +78,7 @@ void initialize(int alg, int q) {
     comp_msgq_id = msgget(comp_key, 0666);
     if (comp_msgq_id == -1) {
         perror("Error accessing completion message queue");
-        return -1;
+        return ;
     }
     
     sync_clk();
@@ -411,7 +411,7 @@ void stop_process(PCB* process) {
 // Log process state changes
 void log_process_state(PCB* process, char* state) {
     if (!process || !logFile) return;
-    if(state != "finished")
+    if(strcmp(state,"finished")!=0)
         fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d\n",
             current_time, process->id, state, process->arrival_time,
             process->runtime, process->remaining_time, process->wait_time);
@@ -448,9 +448,7 @@ void log_performance_stats() {
     for (int i = 0; i < static_process_count; i++) {
         if(WTA_Array[i] != -1) WTA_sum += WTA_Array[i];
     }
-    printf("WTA SUM %d, process count %d\n", WTA_sum, static_process_count);
     double WTA_AVG = WTA_sum / static_process_count;
-    printf("WTA_SUM: %f && process count: %d\n", WTA_sum, static_process_count);
     WTA_AVG = round(WTA_AVG * 100) /100;
     fprintf(perfLogFile, "Avg WTA = %.2f\n", WTA_AVG);
     double ans = waiting / static_process_count;
@@ -564,7 +562,7 @@ void cleanup() {
     exit(0);
 }
 
-int Empty(void ** RQ){
+int Empty(void * RQ){
     if (algorithm == RR)
     {
         Queue * q = (Queue*)RQ;

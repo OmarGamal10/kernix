@@ -17,7 +17,7 @@ typedef struct Queue {
 
 Node* createNode(void* data);
 Queue* createQueue();
-int isEmpty(void ** queue);
+int isEmpty(void *queue);
 int getSize(Queue* queue);
 void printQueue(Queue* queue, void (*printFunc)(void *));
 void enqueue(Queue* queue, void* data);

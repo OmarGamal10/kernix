@@ -66,7 +66,7 @@ $(SCHEDULER_OBJ): $(SCHEDULER_SRC) $(SRC_DIR)/scheduler.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile process_generator.c
-$(PROCESS_GEN_OBJ): $(PROCESS_GEN_SRC) $(SRC_DIR)/clk.h $(SRC_DIR)/scheduler.h
+$(PROCESS_GEN_OBJ): $(PROCESS_GEN_SRC) $(SRC_DIR)/clk.h $(SRC_DIR)/scheduler.h $(SRC_DIR)/process_generator.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile process.c
