@@ -8,6 +8,7 @@
 #include "scheduler.h"
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/shm.h>
 
 // typedef struct {
 //     long mtype;
@@ -158,6 +159,9 @@ int main(int argc, char * argv[])
                 }
                 
                 int *shm_ptr = (int *)shmat(shm_id, NULL, 0);
+                printf("shared memory id %d\n", shm_id);
+                printf("shared memory pointer %p\n", (void*)shm_ptr);
+                printf("shared memory value %d\n", *shm_ptr);
                 if (shm_ptr == (void *)-1) {
                     perror("Failed to attach shared memory");
                     shmctl(shm_id, IPC_RMID, NULL); // Clean up shared memory
@@ -165,6 +169,7 @@ int main(int argc, char * argv[])
                 }
 
                 *shm_ptr = process_list[next_process_idx].runtime; // Initialize shared memory with runtime
+                printf("shared memory new value %d\n", *shm_ptr);
                 // printf("Process %d (PID: %d) created shared memory %d\n", 
                 //        process_list[next_process_idx].id, getpid(), *shm_ptr);
                 
@@ -184,6 +189,7 @@ int main(int argc, char * argv[])
                     sprintf(runtime_str, "%d", process_list[next_process_idx].runtime);
                     sprintf(id_str, "%d", process_list[next_process_idx].id);
                     sprintf(shm_id_str, "%d", shm_id);
+
                     
                     execl("./bin/process", "process", runtime_str, id_str, shm_id_str, NULL);
                     
@@ -192,6 +198,8 @@ int main(int argc, char * argv[])
                 }
 
                 kill(process_pid, SIGSTOP);
+                // Store the process ID in the process list
+                process_list[next_process_idx].pid = process_pid;
                 printf("Process %d (PID: %d) created and stopped\n", process_list[next_process_idx].id, process_pid);
                 
                 // Parent process - send message to scheduler
@@ -246,15 +254,22 @@ int main(int argc, char * argv[])
 // Function to check for completed processes
 void check_completed_processes(process_data* process_list, int num_processes) {
     for (int i = 0; i < num_processes; i++) {
+
         // Skip processes not yet created or already completed
         if (process_list[i].pid <= 0 || process_list[i].completed)
             continue;
             
         int status;
         pid_t result = waitpid(process_list[i].pid, &status, WNOHANG);
+        printf(result == 0 ? "Process %d (PID: %d) is still running\n" : "Process %d (PID: %d) has status %d\n", 
+               process_list[i].id, process_list[i].pid, result);
+
         
         if (result > 0) {  // Process has terminated
+            // Mark the process as completed
             process_list[i].completed = 1;
+            printf("Process %d (PID: %d) completed with status %d\n", 
+                   process_list[i].id, process_list[i].pid, WEXITSTATUS(status));
             printf("Process %d (PID: %d) detected as completed\n", 
                    process_list[i].id, process_list[i].pid);
             

@@ -2,6 +2,7 @@
 #include <errno.h> // Ensure this is included
 
 
+
 int algorithm;          
 int quantum;   
 int arr_msgq_id;
@@ -21,44 +22,6 @@ int process_not_arrived = 1; // Flag to indicate if there is a processes that ha
 // int shm_id;
 
 // int *current_shm_ptr = NULL; // Pointer to shared memory for current process
-
-
-// int main(int argc, char* argv[]) {
-//     if (argc < 2) {
-//         fprintf(stderr, "Usage: %s <algorithm> [quantum]\n", argv[0]);
-//         fprintf(stderr, "  algorithm: 1=HPF, 2=SRTN, 3=RR\n");
-//         fprintf(stderr, "  quantum: required for RR algorithm\n");
-//         exit(1);
-//     }
-    
-//     algorithm = atoi(argv[1]);
-    
-//     if (algorithm < 1 || algorithm > 3) {
-//         fprintf(stderr, "Invalid algorithm. Must be 1 (HPF), 2 (SRTN), or 3 (RR)\n");
-//         exit(1);
-//     }
-    
-//     quantum = 0;
-//     if (algorithm == RR) {
-//         if (argc < 3) {
-//             fprintf(stderr, "Error: RR algorithm requires quantum parameter\n");
-//             exit(1);
-//         }
-//         quantum = atoi(argv[2]);
-//         if (quantum <= 0) {
-//             fprintf(stderr, "Error: Quantum must be a positive integer\n");
-//             exit(1);
-//         }
-//     }
-    
-//     initialize(algorithm, quantum);
-    
-//     run_scheduler();
-    
-//     cleanup();
-    
-//     return 0;
-// }
 
 void initialize(int alg, int q) {
     algorithm = alg;
@@ -405,6 +368,8 @@ void start_process(PCB* process) {
         process->wait_time = current_time - process->arrival_time;
         
         // Update shared memory with current remaining time
+        printf("shared memory pointer in scheduler %d\n", process->shm_ptr);
+        printf("shared memory value in scheduler %d\n", *process->shm_ptr);
         *(process->shm_ptr) = process->remaining_time;
         
         // No need to fork as the process is already running

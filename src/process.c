@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 /* Modify this file as needed*/
 int remaining_time = 0; // Placeholder for remaining time
@@ -14,7 +16,7 @@ void run_process(int runtime, int id, int *current_shm_ptr)
     while (remaining_time > 0)
     {
         remaining_time = *current_shm_ptr; // Get the remaining time from shared memory
-        printf("Process with id %d is running at time %d, remaining time: %d\n", id, get_clk(), remaining_time);
+        // printf("Process with id %d is running at time %d, remaining time: %d\n", id, get_clk(), remaining_time);
         sleep(.5);
         //sleep(0.5); // Simulate process work
         // it is decremented in the scheduler
