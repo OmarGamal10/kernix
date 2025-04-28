@@ -3,11 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/ipc.h>
+#include <sys/ipc.h>    
 #include <sys/shm.h>
 
 /* Modify this file as needed*/
 int remaining_time = 0; // Placeholder for remaining time
+
+
 void run_process(int runtime, int id, int *current_shm_ptr)
 {
     printf("Process with id %d started at time %d, in process\n", id, get_clk());

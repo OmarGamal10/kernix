@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -9,6 +10,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/shm.h>
+#include <errno.h>
 
 // typedef struct {
 //     long mtype;
@@ -36,6 +38,27 @@ int arrG_msgq_id = -1;
 int compG_msgq_id = -1;
 
 pid_t scheduler_pid = -1;
+void sigchld_handler(int sig) {
+    int saved_errno = errno; // Save errno to restore it later
+    pid_t pid;
+    int status;
+    
+    // Use waitpid with WNOHANG to collect all terminated children
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        // Check if the child actually exited (not stopped or continued)
+        if (WIFEXITED(status)) {
+            printf("Child %d exited with status %d\n", pid, WEXITSTATUS(status));
+            // Handle child exit here
+        }
+        else if (WIFSIGNALED(status)) {
+            printf("Child %d killed by signal %d\n", pid, WTERMSIG(status));
+            // Handle child terminated by signal
+        }
+        // Ignore other cases (stopped, continued)
+    }
+    
+    errno = saved_errno; // Restore errno
+}
 
 int main(int argc, char * argv[])
 {
@@ -43,6 +66,15 @@ int main(int argc, char * argv[])
     
     // Fork the clock process (parent is clock, child is generator)
     pid_t clk_pid = fork();
+    struct sigaction sa;
+    sa.sa_handler = sigchld_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP; // SA_NOCLDSTOP is key here
+    
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(1);
+    }
     
     if (clk_pid == -1) {
         perror("Error forking clock process");
@@ -236,7 +268,7 @@ int main(int argc, char * argv[])
                          perror("Error sending no-process message");
                      }
                  }
-                 check_completed_processes(process_list, num_processes);
+                //  check_completed_processes(process_list, num_processes);
              }
              
              usleep(1000);
