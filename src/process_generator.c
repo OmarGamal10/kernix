@@ -190,7 +190,7 @@ void arguments_Reader(int argc, char *argv[], int *algorithm_type, int *quantum,
             exit(1);
         }
     }
-    else if (strcmp(algorithm, "srt") == 0 && argc == 5)
+    else if (strcmp(algorithm, "srtn") == 0 && argc == 5)
     {
         *algorithm_type = 2;
         if (strcmp(argv[3], "-f") == 0)
