@@ -11,30 +11,47 @@
 #include <sys/msg.h>
 #include <sys/shm.h>
 #include <errno.h>
+#include <process_generator.h>
 
 #define MAX_PROCESSES 100
 #define MAX_LINE_LENGTH 256
 
 void clear_resources(int);
 
-typedef struct
-{
-    int id;
-    int arrival_time;
-    int runtime;
-    int priority;
-    pid_t pid;
-    int completed;
-} process_data;
 
-int arrG_msgq_id = -1;
-int compG_msgq_id = -1;
+
+
+int processCount = 0;
+
+int arrG_msgq_id = -1; // Message queue ID for arrival messages
+int compG_msgq_id = -1; // Message queue ID for completion messages
 
 pid_t scheduler_pid = -1;
 
+// Signal handler for SIGCHLD to handle terminated child processes
+void sigchld_handler(int sig)
+{
+    int saved_errno = errno;
+    pid_t pid;
+    int status;
+
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+    {
+        if (WIFEXITED(status))
+        {
+            notifySchedulerFinishedProcess(pid);
+        }
+    }
+
+    errno = saved_errno;
+}
+
+
 process_data process_list[MAX_PROCESSES];
+
 int main(int argc, char *argv[])
 {
+
     signals_handling();
     pid_t clk_pid = fork();
 
@@ -46,13 +63,14 @@ int main(int argc, char *argv[])
 
     if (clk_pid == 0) // Child process (clk)
     {
+        // Initialize and run the clock
         init_clk();
         sync_clk();
         run_clk();
     }
     else // Parent process (generator)
     {
-
+        // Create message queues for communication with the scheduler
         key_t arr_key = ftok("keyfile", 'a');
         arrG_msgq_id = msgget(arr_key, 0666 | IPC_CREAT);
         if (arrG_msgq_id == -1)
@@ -69,11 +87,13 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
+        // Parse command-line arguments to determine scheduling algorithm and input file
         char *algorithm = "hpf"; // Default: HPF
         int algoritm_type = 0;   // 1: HPF, 2: SRTN, 3: RR
         int quantum = 1;         // Default quantum for RR
         int processCount = 0;
         arguments_Reader(argc, argv, &algoritm_type, &quantum, &processCount, process_list);
+
 
         if (processCount == 0)
         {
@@ -127,19 +147,23 @@ int main(int argc, char *argv[])
                 }
                 sending_proceess(&next_process_idx, processCount, current_time, &processes_sent);
 
+
                 there_is_no_processes(processes_sent);
+
             }
-            usleep(1000);
+            usleep(1000); // Sleep for 1ms
         }
 
+        // Wait for the scheduler to finish
         int status;
         waitpid(scheduler_pid, &status, 0);
 
-        clear_resources(0);
+        clear_resources(0); // Clean up resources
     }
 
     return 0;
 }
+
 
 void sigchld_handler(int sig)
 {
@@ -238,6 +262,7 @@ void arguments_Reader(int argc, char *argv[], int *algorithm_type, int *quantum,
     }
 }
 
+
 int read_processes(const char *filename, process_data process_list[])
 {
     FILE *file = fopen(filename, "r");
@@ -285,6 +310,7 @@ int read_processes(const char *filename, process_data process_list[])
     return process_count;
 }
 
+// Function to display the list of processes
 void display_processes(process_data process_list[], int count)
 {
     printf("\033[1;31m");
@@ -304,6 +330,7 @@ void display_processes(process_data process_list[], int count)
                process_list[i].pid);
     }
 }
+
 
 int check_no_more_processes(int next_process_idx, int processCount)
 {
@@ -429,6 +456,7 @@ void there_is_no_processes(int processes_sent)
     }
 }
 
+// Notify the scheduler when a process finishes
 void notifySchedulerFinishedProcess(pid_t pid)
 {
     CompletionMessage msg;
@@ -442,6 +470,7 @@ void notifySchedulerFinishedProcess(pid_t pid)
     }
 }
 
+// Function to clean up resources
 void clear_resources(int signum)
 {
     static int already_cleaning = 0;

@@ -20,7 +20,7 @@ Queue* createQueue() {
   return queue;
 }
 
-int isEmpty(void** queue) {
+int isEmpty(void* queue) {
   Queue* q = (Queue*)queue;
   if(q == NULL)
     return 1;

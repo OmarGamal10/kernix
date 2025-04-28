@@ -79,7 +79,7 @@ void initialize(int alg, int q)
     if (arr_msgq_id == -1)
     {
         perror("Error accessing arrival message queue");
-        return -1;
+        return ;
     }
 
     // Open completion message queue
@@ -88,7 +88,7 @@ void initialize(int alg, int q)
     if (comp_msgq_id == -1)
     {
         perror("Error accessing completion message queue");
-        return -1;
+        return ;
     }
 
     sync_clk();
@@ -490,11 +490,11 @@ void stop_process(PCB *process)
 }
 
 // Log process state changes
-void log_process_state(PCB *process, char *state)
-{
-    if (!process || !logFile)
-        return;
-    if (state != "finished")
+
+void log_process_state(PCB* process, char* state) {
+    if (!process || !logFile) return;
+    if(strcmp(state,"finished")!=0)
+
         fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d\n",
                 current_time, process->id, state, process->arrival_time,
                 process->runtime, process->remaining_time, process->wait_time);
@@ -682,8 +682,9 @@ void cleanup() {
     exit(0);
 }
 
-int Empty(void **RQ)
-{
+
+int Empty(void * RQ){
+
     if (algorithm == RR)
     {
         Queue *q = (Queue *)RQ;
