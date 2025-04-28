@@ -422,13 +422,20 @@ void log_process_state(PCB* process, char* state) {
             process->runtime, process->remaining_time, process->wait_time);
     else {
         int TA = process->ending_time - process->arrival_time;
-        double WTA = (double)TA / process->runtime;
-        WTA = round(WTA * 100) / 100;
-        fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d TA %d WTA %.2f\n",
-            current_time, process->id, state, process->arrival_time,
-            process->runtime, process->remaining_time, process->wait_time, TA, WTA);
+        if(process->runtime > 0) {
+            double WTA = (double)TA / process->runtime;
+            WTA = round(WTA * 100) / 100;
+            fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d TA %d WTA %.2f\n",
+                current_time, process->id, state, process->arrival_time,
+                process->runtime, process->remaining_time, process->wait_time, TA, WTA);
+                WTA_Array[process->id - 1] = WTA;
+        }
+        else {
+            fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d TA %d WTA Could not be calculated\n",
+                current_time, process->id, state, process->arrival_time,
+                process->runtime, process->remaining_time, process->wait_time, TA);
+        }
         TA_Array[process->id - 1] = TA;
-        WTA_Array[process->id - 1] = WTA;
     }
     fflush(logFile);
 }
