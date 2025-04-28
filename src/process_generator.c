@@ -12,15 +12,8 @@
 #include <sys/shm.h>
 #include <errno.h>
 
-// typedef struct {
-//     long mtype;
-//     int process_id;      
-//     int arrival_time;
-//     int runtime;
-//     int priority;
-//     pid_t pid;           
-//     int shm_id;          
-// } ProcessMessage;
+#define MAX_PROCESSES 100
+#define MAX_LINE_LENGTH 256
 
 void clear_resources(int);
 
@@ -32,6 +25,8 @@ typedef struct {
     pid_t pid;
     int completed;
 } process_data;
+
+int process_count = 0; // Number of processes in the list
 
 // global variables for cleanup
 int arrG_msgq_id = -1;
@@ -61,6 +56,7 @@ void sigchld_handler(int sig) {
     errno = saved_errno; // Restore errno
 }
 
+process_data process_list[MAX_PROCESSES];
 int main(int argc, char * argv[])
 {
     signal(SIGINT, clear_resources);
@@ -108,11 +104,30 @@ int main(int argc, char * argv[])
          // Get scheduling algorithm (default to HPF if not specified) // for testing
          int algorithm = 1;  // Default: HPF
          int quantum = 1;    // Default quantum for RR
+
+         printf("argcs count: %d\n", argc);
          
          if (argc > 1) {
              algorithm = atoi(argv[1]);
              if (algorithm == 3 && argc > 2) { // RR needs quantum
                  quantum = atoi(argv[2]);
+                 if(argc>3)
+                 {
+                    printf("test file: %s\n", argv[3]);
+                    process_count=read_processes(argv[3],process_list);
+                    display_processes(process_list, process_count);
+                 }
+             }
+             else if((algorithm==1||algorithm==2) && argc>2)
+             {
+                printf("test file: %s\n", argv[2]);
+                process_count=read_processes(argv[2],process_list);
+                display_processes(process_list, process_count);
+             }
+             else
+             {
+                printf("Error: Invalid arguments\n");
+                exit(1);
              }
          }
          
@@ -134,16 +149,10 @@ int main(int argc, char * argv[])
      
          
          sync_clk();
+
          
-         // Read processes from the process list (hardcoded for now)
-         process_data process_list[] = {
-             {1, 0, 5, 1, 0, 0},
-             {2, 0, 3, 2, 0, 0},
-             {3, 0, 4, 3, 0, 0},
-             {4, 0, 3, 4, 0, 0},
-             {5, 0, 1, 5, 0, 0}
-         };
-         int num_processes = sizeof(process_list) / sizeof(process_list[0]);
+         
+
          int next_process_idx = 0;
          int current_time = -1;  // Initialize to ensure first tick is processed
          
@@ -164,6 +173,7 @@ int main(int argc, char * argv[])
                  int processes_sent = 0; // Track if any processes were sent
                  
                  // Check if we have a process arriving at this time
+
                 
                  if (next_process_idx >= num_processes) {
                     // All processes have been sent, signal completion
@@ -257,6 +267,7 @@ int main(int argc, char * argv[])
                 processes_sent++;
                 }
                  
+
                  // No need to send -1 if processes were sent
                  // Only send -1 if no processes arrived this tick
                 if (processes_sent == 0) {
@@ -284,6 +295,61 @@ int main(int argc, char * argv[])
     return 0;
 }
 
+
+
+int read_processes(const char* filename, process_data process_list[]) {
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return -1;
+    }
+
+    char line[MAX_LINE_LENGTH];
+    int process_count = 0;
+
+    // Skip lines starting with '#'
+    while (fgets(line, sizeof(line), file)) {
+        // Skip comment lines
+        if (line[0] == '#') {
+            continue;
+        }
+
+        // Parse the process information
+        if (sscanf(line, "%d\t%d\t%d\t%d", 
+                  &process_list[process_count].id, 
+                  &process_list[process_count].arrival_time, 
+                  &process_list[process_count].runtime, 
+                  &process_list[process_count].priority) == 4) {
+            
+            // Initialize pid to 0
+            process_list[process_count].pid = 0;
+            
+            process_count++;
+            if (process_count >= MAX_PROCESSES) {
+                printf("Warning: Maximum process limit (%d) reached. Ignoring remaining processes.\n", MAX_PROCESSES);
+                break;
+            }
+        }
+    }
+
+    fclose(file);
+    return process_count;
+}
+
+
+void display_processes(process_data process_list[], int count) {
+    printf("\nProcess List:\n");
+    printf("ID\tArrival\tRuntime\tPriority\tPID\n");
+    printf("------------------------------------------------\n");
+    
+    for (int i = 0; i < count; i++) {
+        printf("%d\t%d\t%d\t%d\t%d\n", 
+               process_list[i].id, 
+               process_list[i].arrival_time, 
+               process_list[i].runtime, 
+               process_list[i].priority,
+               process_list[i].pid);
+=======
 // Function to check for completed processes
 void check_completed_processes(process_data* process_list, int num_processes) {
     for (int i = 0; i < num_processes; i++) {
