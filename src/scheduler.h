@@ -29,7 +29,8 @@
 #define BLOCKED 2
 #define FINISHED 3
 
-struct PCB {
+struct PCB
+{
     int id;
     int arrival_time;
     int runtime;
@@ -39,50 +40,49 @@ struct PCB {
     int wait_time;
     int start_time;
     int status;
-    struct PCB* next;
-    int shm_id;      
-    int *shm_ptr;    
+    struct PCB *next;
+    int shm_id;
+    int *shm_ptr;
     int ending_time;
 };
 
 typedef struct PCB PCB; // Forward declaration for PCB
 
-typedef struct {
+typedef struct
+{
     long mtype;
-    int process_id;      
+    int process_id;
     int arrival_time;
     int runtime;
     int priority;
-    pid_t pid;           
-    int shm_id;          
+    pid_t pid;
+    int shm_id;
 } ProcessMessage;
 
-typedef struct {
-    long mtype;        // Message type (use 1 for completion messages)
-    int process_id;    // ID of completed process
-    int finish_time;   // Time when process finished
+typedef struct
+{
+    long mtype;      // Message type (use 1 for completion messages)
+    int process_id;  // ID of completed process
+    int finish_time; // Time when process finished
 } CompletionMessage;
-
 
 void initialize(int alg, int q);
 void run_scheduler();
 void cleanup();
 
-
-PCB* select_next_process();
+PCB *select_next_process();
 void update_process_times();
 void handle_finished_process();
 void check_arrivals();
-void start_process(PCB* process);
-void stop_process(PCB* process);
-void log_process_state(PCB* process, char* state);
+void start_process(PCB *process);
+void stop_process(PCB *process);
+void log_process_state(PCB *process, char *state);
 void log_performance_stats();
 
-int compare_priority(void* a, void* b);
-int compare_remaining_time(void* a, void* b);
-void PCB_remove(PCB* process);
-void PCB_add(PCB* process);
-int Empty(void** RQ);
-
+int compare_priority(void *a, void *b);
+int compare_remaining_time(void *a, void *b);
+void PCB_remove(PCB *process);
+void PCB_add(PCB *process);
+int Empty(void **RQ);
 
 #endif /* SCHEDULER_H */

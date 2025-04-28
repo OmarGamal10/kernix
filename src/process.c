@@ -3,20 +3,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/ipc.h>    
+#include <sys/ipc.h>
 #include <sys/shm.h>
 
-/* Modify this file as needed*/
 int remaining_time = 0; // Placeholder for remaining time
-
 
 void run_process(int runtime, int id, int *current_shm_ptr)
 {
-    //process terminates when the shared memory value reaches 0
+    // process terminates when the shared memory value reaches 0
     while (remaining_time > 0)
     {
         remaining_time = *current_shm_ptr; // Get the remaining time from shared memory
-        
     }
 }
 
@@ -31,8 +28,7 @@ int main(int argc, char *argv[])
     int runtime = atoi(argv[1]);
     int id = atoi(argv[2]);
     int shm_id = atoi(argv[3]);
-    
-    
+
     int *current_shm_ptr = (int *)shmat(shm_id, NULL, 0);
     if ((long)current_shm_ptr == -1)
     {
@@ -41,23 +37,20 @@ int main(int argc, char *argv[])
     }
 
     remaining_time = *current_shm_ptr; // Get the initial remaining time from shared memory
-    
+
     if (runtime <= 0)
     {
         printf("Invalid runtime value. It should be a positive integer.\n");
         return 1;
     }
-    
+
     run_process(runtime, id, current_shm_ptr);
-    // Detach shared memory
+    // Deattach shared memory
     if (shmdt(current_shm_ptr) == -1)
     {
-        perror("Failed to detach shared memory segment");
+        perror("Failed to Deattach shared memory segment");
         return 1;
     }
     destroy_clk(0);
     exit(0); // Exit the process
-
 }
-
-
