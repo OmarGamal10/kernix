@@ -3,17 +3,19 @@
 #include <math.h>
 
 
+
 int algorithm;          
 int quantum;   
 int arr_msgq_id;
 int comp_msgq_id;          
 FILE* logFile;          
 void* readyQueue;        
-int max_processes = 100;
 PCB* PCB_table_head = NULL;
 PCB* PCB_table_tail = NULL;
 int process_count = 0;   
 int static_process_count = 0;
+int first_time = 0;
+int first_arrival_time;
 PCB* running_process = NULL; 
 int current_time = -1;  
 int actual_running_time = 0; 
@@ -22,8 +24,8 @@ int terminated = 0;
 int KEY = 300;   
 int process_not_arrived = 1; // Flag to indicate if there is a processes that haven't arrived
 
-int TA_Array[100];
-double WTA_Array[100];
+int TA_Array[MAX_PROCESSES];
+double WTA_Array[MAX_PROCESSES];
 double waiting = 0;
 
 
@@ -33,24 +35,27 @@ void initialize(int alg, int q) {
     
     signal(SIGINT, (void (*)(int))cleanup);
 
-    for (int i = 0; i < 100; i++) TA_Array[i] = -1;
-    for (int i = 0; i < 100; i++) WTA_Array[i] = -1;
+    for (int i = 0; i < MAX_PROCESSES; i++) TA_Array[i] = -1;
+    for (int i = 0; i < MAX_PROCESSES; i++) WTA_Array[i] = -1;
     
+    printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
     printf(algorithm == HPF ? "Using HPF algorithm\n" :
            algorithm == SRTN ? "Using SRTN algorithm\n" :
            algorithm == RR ? "Using RR algorithm\n" : "Unknown algorithm\n");
     switch(algorithm) {
         case HPF:
-            readyQueue = createMinHeap(max_processes, compare_priority);
+            readyQueue = createMinHeap(MAX_PROCESSES, compare_priority);
+            printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
             printf("Scheduler started with Highest Priority First algorithm\n");
             break;
         case SRTN:
+            printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
             printf("Scheduler started with Shortest Remaining Time Next algorithm\n");
-            readyQueue = createMinHeap(max_processes, compare_remaining_time);
-            printf("Scheduler started with Shortest Remaining Time Next algorithm\n");
+            readyQueue = createMinHeap(MAX_PROCESSES, compare_remaining_time);
             break;
         case RR:
             readyQueue = createQueue();
+            printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
             printf("Scheduler started with Round Robin algorithm, quantum = %d\n", quantum);
             break;
     }
@@ -82,7 +87,8 @@ void initialize(int alg, int q) {
     }
     
     sync_clk();
-    
+
+    printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
     printf("Scheduler initialized successfully\n");
 }
 
@@ -137,6 +143,7 @@ void check_arrivals() {
             }
 
             if (msg.process_id == -2) {
+                printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
                 printf("Received no more processes signal at time %d\n", current_time);
                 process_not_arrived = false;
                 if (running_process == NULL && Empty(readyQueue)) {
@@ -199,6 +206,7 @@ void check_arrivals() {
                     break;
             }
 
+            printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
             printf("Process %d arrived at time %d\n", new_process->id, current_time);
             log_process_state(new_process, "arrived");
             processes_received++;
@@ -255,8 +263,6 @@ void handle_finished_process() {
         if(msgrcv(comp_msgq_id, &msg, sizeof(msg) - sizeof(long), 0, !IPC_NOWAIT) == -1) {
             perror("Error receiving completion message");
         }
-        if(msg.mtype == 1 && msg.process_id == running_process->pid)
-        printf("Received the Process Generator message Process %d completed at time %d\n", running_process->id, current_time);
         running_process->ending_time = current_time;
         log_process_state(running_process, "finished");
         
@@ -298,6 +304,7 @@ PCB* select_next_process() {
 
     // If using RR and quantum expired, put process back in queue
     if (algorithm == RR && running_process && time_slice >= quantum) {
+        printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
         printf("Quantum expired for Process %d (remaining time: %d)\n", running_process->id, running_process->remaining_time);
         
         // Only enqueue if process still has remaining time, which should be the case anyways
@@ -377,13 +384,19 @@ void start_process(PCB* process) {
         // Update shared memory with current remaining time
         *(process->shm_ptr) = process->remaining_time;
         
-        printf("Starting process %d (PID: %d) at time %d\n", process->id, process->pid, current_time);
+        printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
+        printf("Starting process %d at time %d\n", process->id, current_time);
+        if (first_time == 0) {
+            first_arrival_time = current_time;
+            first_time = 1;
+        }
         // No need to fork as the process is already running
         log_process_state(process, "started");
     } else {
         // Resume the process
         *(process->shm_ptr) = process->remaining_time;
-        printf("Resuming process %d (PID: %d) at time %d\n", process->id, process->pid, current_time);
+        printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
+        printf("Resuming process %d at time %d\n", process->id, current_time);
         process->status = RUNNING;
         log_process_state(process, "resumed");
     }
@@ -399,7 +412,10 @@ void stop_process(PCB* process) {
     
     if (process->status == RUNNING && process->remaining_time > 0) {
         // Only stop if process is running and not finished
+        printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
         printf("Stopping process %d (remaining time: %d)\n", process->id, process->remaining_time);
+        printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
+        printf("first arrival time %d\n", first_arrival_time);
 
         kill(process->pid, SIGSTOP);
         //current_shm_ptr = NULL; // Reset shared memory pointer
@@ -441,16 +457,14 @@ void log_performance_stats() {
         perror("Failed to open performance file");
         exit(1);
     }
-    double CPU_utilization = (actual_running_time / (double)current_time) * 100;
+    double CPU_utilization = (actual_running_time / (double)(current_time - first_arrival_time)) * 100;
     CPU_utilization = round(CPU_utilization * 100) / 100;
     fprintf(perfLogFile, "CPU utilization = %.2f%\n", CPU_utilization);
     double WTA_sum = 0;
     for (int i = 0; i < static_process_count; i++) {
         if(WTA_Array[i] != -1) WTA_sum += WTA_Array[i];
     }
-    printf("WTA SUM %d, process count %d\n", WTA_sum, static_process_count);
     double WTA_AVG = WTA_sum / static_process_count;
-    printf("WTA_SUM: %f && process count: %d\n", WTA_sum, static_process_count);
     WTA_AVG = round(WTA_AVG * 100) /100;
     fprintf(perfLogFile, "Avg WTA = %.2f\n", WTA_AVG);
     double ans = waiting / static_process_count;
@@ -520,6 +534,7 @@ void PCB_remove(PCB* process) {
 }
 
 void cleanup() {
+    printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
     printf("Cleaning up scheduler resources...\n");
     
     if (logFile) {
