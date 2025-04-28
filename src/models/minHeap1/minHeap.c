@@ -15,6 +15,7 @@ MinHeap *createMinHeap(int capacity, int (*compare)(void *a, void *b))
         free(newHeap);
         return NULL;
     }
+    newHeap->compare = compare; // Set the comparison function
     return newHeap;
 }
 
@@ -57,7 +58,6 @@ void *extractMin(MinHeap *min_h)
 {
     if (min_h->size == 0) // Check if the heap is empty
     {
-        printf("Heap is empty\n");
         return NULL;
     }
 
@@ -80,7 +80,6 @@ void *getMin(MinHeap *min_h)
 {
     if (min_h->size == 0) // Check if the heap is empty
     {
-        printf("Heap is empty\n");
         return NULL;
     }
     return min_h->array[0]; // Return the root element
@@ -127,3 +126,4 @@ void destroyHeap(MinHeap *min_h)
     free(min_h->array); // Free the array
     free(min_h); // Free the heap structure
 }
+

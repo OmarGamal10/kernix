@@ -53,5 +53,12 @@ dkms.conf
 
 src/bin
 src/obj
-processes.txt
 .vscode
+
+keyfile
+
+# Project output files
+processes.txt
+src/scheduler.log
+src/scheduler.perf
+keyfile

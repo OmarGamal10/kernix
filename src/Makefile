@@ -1,34 +1,86 @@
-# Makefile for the os-sim project
+# Makefile for the kernel simulator project
 
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -g -I.
+LDFLAGS = -lm
 
 # Directories
-SRC_DIR = .
-OBJ_DIR = obj
-BIN_DIR = bin
+SRC_DIR    = .
+OBJ_DIR    = obj
+BIN_DIR    = bin
+MODELS_DIR = models
 
-# Target executable
-TARGET = $(BIN_DIR)/os-sim
+# Target executables
+PROCESS_GENERATOR = $(BIN_DIR)/process_generator
+SCHEDULER        = $(BIN_DIR)/scheduler
+PROCESS          = $(BIN_DIR)/process
 
-# Source and object files
-SRCS = $(wildcard $(SRC_DIR)/*.c)
-OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
+# Source files
+CLK_SRC         = $(SRC_DIR)/clk.c
+SCHEDULER_SRC   = $(SRC_DIR)/scheduler.c
+PROCESS_GEN_SRC = $(SRC_DIR)/process_generator.c
+PROCESS_SRC     = $(SRC_DIR)/process.c
+QUEUE_SRC       = $(MODELS_DIR)/Queue/queue.c
+MINHEAP_SRC     = $(MODELS_DIR)/minHeap1/minHeap.c
 
-# Default target
-all: $(TARGET)
+# Object files
+CLK_OBJ         = $(OBJ_DIR)/clk.o
+SCHEDULER_OBJ   = $(OBJ_DIR)/scheduler.o
+PROCESS_GEN_OBJ = $(OBJ_DIR)/process_generator.o
+PROCESS_OBJ     = $(OBJ_DIR)/process.o
+QUEUE_OBJ       = $(OBJ_DIR)/queue.o
+MINHEAP_OBJ     = $(OBJ_DIR)/minheap.o
 
-# Build the target executable
-$(TARGET): $(OBJS)
-	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) -o $@ $^
+.PHONY: all clean keyfile setup
 
-# Build object files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(OBJ_DIR)
+# Default target - build all executables
+all: setup $(PROCESS_GENERATOR) $(PROCESS) keyfile
+
+# Create necessary directories
+setup:
+	@mkdir -p $(OBJ_DIR) $(BIN_DIR)
+
+# Create keyfile for IPC
+keyfile:
+	@touch keyfile
+
+# Build process_generator - must include scheduler objects
+$(PROCESS_GENERATOR): $(PROCESS_GEN_OBJ) $(CLK_OBJ) $(SCHEDULER_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Build scheduler
+$(SCHEDULER): $(SCHEDULER_OBJ) $(CLK_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Build process
+$(PROCESS): $(PROCESS_OBJ) $(CLK_OBJ)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Compile clk.c
+$(CLK_OBJ): $(CLK_SRC) $(SRC_DIR)/clk.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile scheduler.c
+$(SCHEDULER_OBJ): $(SCHEDULER_SRC) $(SRC_DIR)/scheduler.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile process_generator.c
+$(PROCESS_GEN_OBJ): $(PROCESS_GEN_SRC) $(SRC_DIR)/clk.h $(SRC_DIR)/scheduler.h $(SRC_DIR)/process_generator.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile process.c
+$(PROCESS_OBJ): $(PROCESS_SRC)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile queue.c
+$(QUEUE_OBJ): $(QUEUE_SRC) $(MODELS_DIR)/Queue/queue.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile minHeap.c
+$(MINHEAP_OBJ): $(MINHEAP_SRC) $(MODELS_DIR)/minHeap1/minHeap.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean up build files
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@rm -rf $(OBJ_DIR) $(BIN_DIR) keyfile

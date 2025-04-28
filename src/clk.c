@@ -22,6 +22,7 @@ int shmid;
 /* Clear the resources before exit */
 void _cleanup(__attribute__((unused)) int signum)
 {
+    printf("Clock cleaning up and value of *shmaddr: %d\n", *shmaddr);
     shmctl(shmid, IPC_RMID, NULL);
     printf("Clock terminating!\n");
     exit(0);
@@ -39,7 +40,7 @@ void init_clk()
         perror("Error in creating shm!");
         exit(-1);
     }
-    int *shmaddr = (int *)shmat(shmid, (void *)0, 0);
+    shmaddr = (int *)shmat(shmid, (void *)0, 0);
     if ((long)shmaddr == -1)
     {
         perror("Error in attaching the shm in clock!");
@@ -68,7 +69,6 @@ void sync_clk()
     while ((int)shmid == -1)
     {
         // Make sure that the clock exists
-        printf("Wait! The clock not initialized yet!\n");
         sleep(1);
         shmid = shmget(SHKEY, 4, 0444);
     }
