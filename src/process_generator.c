@@ -1,24 +1,4 @@
-#define _POSIX_C_SOURCE 200809L
-#include <stdio.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include "clk.h"
-#include "scheduler.h"
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <sys/shm.h>
-#include <errno.h>
-#include <process_generator.h>
-
-#define MAX_PROCESSES 100
-#define MAX_LINE_LENGTH 256
-
-void clear_resources(int);
-
-
+#include "process_generator.h"
 
 
 int processCount = 0;
@@ -88,7 +68,6 @@ int main(int argc, char *argv[])
         }
 
         // Parse command-line arguments to determine scheduling algorithm and input file
-        char *algorithm = "hpf"; // Default: HPF
         int algoritm_type = 0;   // 1: HPF, 2: SRTN, 3: RR
         int quantum = 1;         // Default quantum for RR
         int processCount = 0;
@@ -165,22 +144,6 @@ int main(int argc, char *argv[])
 }
 
 
-void sigchld_handler(int sig)
-{
-    int saved_errno = errno;
-    pid_t pid;
-    int status;
-
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-    {
-        if (WIFEXITED(status))
-        {
-            notifySchedulerFinishedProcess(pid);
-        }
-    }
-
-    errno = saved_errno;
-}
 
 void signals_handling()
 {

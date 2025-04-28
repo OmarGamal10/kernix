@@ -90,6 +90,7 @@ int compare_remaining_time(void* a, void* b); // Compare processes by remaining 
 void PCB_remove(PCB* process);               // Remove a process from the list
 void PCB_add(PCB* process);                  // Add a process to the list
 int Empty(void* RQ);                        // Check if the ready queue is empty
+void check_context_switch();
 
 
 #endif /* SCHEDULER_H */

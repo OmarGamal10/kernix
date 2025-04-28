@@ -529,9 +529,9 @@ void log_performance_stats()
         perror("Failed to open performance file");
         exit(1);
     }
-    double CPU_utilization = (actual_running_time / (double)(current_time - first_arrival_time)) * 100;
+    double CPU_utilization = (actual_running_time / (double)(current_time)) * 100;
     CPU_utilization = round(CPU_utilization * 100) / 100;
-    fprintf(perfLogFile, "CPU utilization = %.2f%\n", CPU_utilization);
+    fprintf(perfLogFile, "CPU utilization = %.2f %%\n", CPU_utilization);
     double WTA_sum = 0;
     for (int i = 0; i < static_process_count; i++)
     {
