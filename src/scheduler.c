@@ -1,6 +1,6 @@
 #include "scheduler.h"
 #include <errno.h> // Ensure this is included
-
+#include <math.h>
 
 
 int algorithm;          
@@ -13,13 +13,19 @@ int max_processes = 100;
 PCB* PCB_table_head = NULL;
 PCB* PCB_table_tail = NULL;
 int process_count = 0;   
+int static_process_count = 0;
 PCB* running_process = NULL; 
-int current_time = -1;   
+int current_time = -1;  
+int actual_running_time = 0; 
 int time_slice = 0;      
 int terminated = 0;  
 int KEY = 300;   
 int process_not_arrived = 1; // Flag to indicate if there is a processes that haven't arrived
 // int shm_id;
+
+int TA_Array[100];
+double WTA_Array[100];
+double waiting = 0;
 
 // int *current_shm_ptr = NULL; // Pointer to shared memory for current process
 
@@ -28,13 +34,20 @@ void initialize(int alg, int q) {
     quantum = q;
     
     signal(SIGINT, (void (*)(int))cleanup);
+
+    for (int i = 0; i < 100; i++) TA_Array[i] = -1;
+    for (int i = 0; i < 100; i++) WTA_Array[i] = -1;
     
+    printf(algorithm == HPF ? "Using HPF algorithm\n" :
+           algorithm == SRTN ? "Using SRTN algorithm\n" :
+           algorithm == RR ? "Using RR algorithm\n" : "Unknown algorithm\n");
     switch(algorithm) {
         case HPF:
             readyQueue = createMinHeap(max_processes, compare_priority);
             printf("Scheduler started with Highest Priority First algorithm\n");
             break;
         case SRTN:
+            printf("Scheduler started with Shortest Remaining Time Next algorithm\n");
             readyQueue = createMinHeap(max_processes, compare_remaining_time);
             printf("Scheduler started with Shortest Remaining Time Next algorithm\n");
             break;
@@ -108,6 +121,7 @@ void run_scheduler() {
             
         }
     }
+    log_performance_stats();
 }
 
 // Check for newly arrived processes from the message queue
@@ -176,6 +190,8 @@ void check_arrivals() {
 
 
             // Add to processes array
+            static_process_count++;
+            actual_running_time += new_process->runtime;
             PCB_add(new_process);
 
             // Add to ready queue
@@ -251,6 +267,7 @@ void handle_finished_process() {
         }
         if(msg.mtype == 1 && msg.process_id == running_process->pid)
         printf("Process %d completed at time %d\n", running_process->id, current_time);
+        running_process->ending_time = current_time;
         log_process_state(running_process, "finished");
         
         PCB_remove(running_process);
@@ -403,11 +420,56 @@ void stop_process(PCB* process) {
 // Log process state changes
 void log_process_state(PCB* process, char* state) {
     if (!process || !logFile) return;
-    
-    fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d\n",
+    if(state != "finished")
+        fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d\n",
             current_time, process->id, state, process->arrival_time,
             process->runtime, process->remaining_time, process->wait_time);
+    else {
+        int TA = process->ending_time - process->arrival_time;
+        if(process->runtime > 0) {
+            double WTA = (double)TA / process->runtime;
+            WTA = round(WTA * 100) / 100;
+            fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d TA %d WTA %.2f\n",
+                current_time, process->id, state, process->arrival_time,
+                process->runtime, process->remaining_time, process->wait_time, TA, WTA);
+                WTA_Array[process->id - 1] = WTA;
+        }
+        else {
+            fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d TA %d WTA Could not be calculated\n",
+                current_time, process->id, state, process->arrival_time,
+                process->runtime, process->remaining_time, process->wait_time, TA);
+        }
+        TA_Array[process->id - 1] = TA;
+    }
     fflush(logFile);
+}
+
+void log_performance_stats() {
+    FILE* perfLogFile = fopen("scheduler.perf", "w");
+    if (!perfLogFile) {
+        perror("Failed to open performance file");
+        exit(1);
+    }
+    double CPU_utilization = (actual_running_time / (double)current_time) * 100;
+    CPU_utilization = round(CPU_utilization * 100) / 100;
+    fprintf(perfLogFile, "CPU utilization = %.2f%\n", CPU_utilization);
+    double WTA_sum = 0;
+    for (int i = 0; i < static_process_count; i++) {
+        if(WTA_Array[i] != -1) WTA_sum += WTA_Array[i];
+    }
+    printf("WTA SUM %d, process count %d\n", WTA_sum, static_process_count);
+    double WTA_AVG = WTA_sum / static_process_count;
+    printf("WTA_SUM: %f && process count: %d\n", WTA_sum, static_process_count);
+    WTA_AVG = round(WTA_AVG * 100) /100;
+    fprintf(perfLogFile, "Avg WTA = %.2f\n", WTA_AVG);
+    PCB* curr = PCB_table_head;
+    double ans = waiting / static_process_count;
+    fprintf(perfLogFile, "Avg Waiting = %.2f\n", ans);
+    double diffSquared = 0;
+    for(int i = 0; i < static_process_count; i++) {
+        diffSquared += pow(WTA_Array[i] - WTA_AVG, 2);
+    }
+    fprintf(perfLogFile, "Std WTA = %.2f\n", pow(diffSquared / static_process_count, 1.0/2));
 }
 
 void PCB_add(PCB* process) {
@@ -430,6 +492,7 @@ void PCB_add(PCB* process) {
 void PCB_remove(PCB* process) {
     if (!PCB_table_head || !process) return;
     printf("Removing process %d from PCB table\n", process->id);
+    waiting += process->wait_time;
     
     // Clean up shared memory resources BEFORE freeing the PCB
     if (process->shm_ptr != (int *)-1 && process->shm_ptr != NULL) {

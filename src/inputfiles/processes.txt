@@ -2,19 +2,19 @@
 # Format: ID	arrival	runtime	priority
 #id	arrival	runtime	priority
 1	0	20	3	# Long-running process starting at time 0
-2	0	4	1	# Highest priority process that arrives at the same time
-3	0	5	5	# Lowest priority process that arrives at the same time
-4	2	2	2	# Short burst process with medium priority
-5	4	10	2	# Medium priority, longer runtime
-6	4	3	1	# Same arrival time as process 5, higher priority
-7	6	1	4	# Very short runtime, low priority
-8	7	15	1	# High priority, long runtime
-9	7	15	1	# Identical to process 8 (same arrival, runtime, priority)
-10	12	4	3	# Arrives during other processes execution
-11	15	3	2	# Several processes arriving at once
-12	15	8	2	# Same priority as process 11, longer runtime
-13	15	2	1	# Highest priority among processes arriving at time 15
-14	18	0	3	# Edge case: zero runtime
-15	20	30	5	# Very long runtime, lowest priority
-16	25	2	1	# Arrives late, high priority
-17	25	2	1	# Same as 16, tests handling of same-priority processes
+2	28	4	1	# Highest priority process that arrives at the same time
+3	28	5	5	# Lowest priority process that arrives at the same time
+4	30	2	2	# Short burst process with medium priority
+5	32	10	2	# Medium priority, longer runtime
+6	32	3	1	# Same arrival time as process 5, higher priority
+7	34	1	4	# Very short runtime, low priority
+8	35	15	1	# High priority, long runtime
+9	35	15	1	# Identical to process 8 (same arrival, runtime, priority)
+10	40	4	3	# Arrives during other processes execution
+11	43	3	2	# Several processes arriving at once
+12	43	8	2	# Same priority as process 11, longer runtime
+13	43	2	1	# Highest priority among processes arriving at time 15
+14	46	0	3	# Edge case: zero runtime
+15	48	30	5	# Very long runtime, lowest priority
+16	53	2	1	# Arrives late, high priority
+17	53	2	1	# Same as 16, tests handling of same-priority processes
