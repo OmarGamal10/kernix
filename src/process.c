@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 
     remaining_time = *current_shm_ptr; // Get the initial remaining time from shared memory
 
-    if (runtime <= 0)
+    if (runtime < 0)
     {
         printf("Invalid runtime value. It should be a positive integer.\n");
         return 1;
