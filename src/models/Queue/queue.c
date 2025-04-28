@@ -60,7 +60,6 @@ void enqueue(Queue* queue, void* data) {
     queue->rear = newnode;
   }
   queue->size++;
-  //printQueue(queue, printProcess);
 }
 
 void* dequeue(Queue* queue) {
@@ -77,56 +76,5 @@ void* dequeue(Queue* queue) {
   }
   free(temp);
   queue->size--;
-  //printQueue(queue, printProcess);
   return data;
 }
-
-
-/*
-int main() {
-  struct Queue* q = createQueue();
-
-  process* a = malloc(sizeof(process));
-  a->pid = 1;
-  a->priority = 5;
-  enqueue(q, a);
-
-  process* b = malloc(sizeof(process));
-  b->pid = 20;
-  b->priority = 10;
-  enqueue(q, b);
-
-  process* f = (process*)dequeue(q);
-  printf("Dequeued: %d %d\n", f->pid, f->priority);
-  f = (process*)dequeue(q);
-  printf("Dequeued: %d %d\n", f->pid, f->priority);
-
-  f = (process*)dequeue(q);
-  if(f == NULL) {
-    printf("Queue is empty\n");
-  } else {
-    printf("Dequeued: %d %d\n", f->pid, f->priority);
-  }
-
-  process* c = malloc(sizeof(process));
-  c->pid = 30;
-  c->priority = 15;
-  enqueue(q, c);
-
-  process* d = malloc(sizeof(process));
-  d->pid = 40;
-  d->priority = 20;
-  enqueue(q, d);
-
-  process* e = malloc(sizeof(process));
-  e->pid = 50;
-  e->priority = 25;
-  enqueue(q, e);
-
-
-  f = (process*)dequeue(q);
-  printf("Dequeued: %d %d\n", f->pid, f->priority);
-  
-  return 0;
-}
-  */

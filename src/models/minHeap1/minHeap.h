@@ -4,7 +4,6 @@
 #include <stdbool.h>
 
 
-
 typedef struct MinHeap
 {
     void **array;
@@ -24,4 +23,3 @@ void *getMin (MinHeap*min_h);
 void minHeapify(MinHeap *min_h, int ind);
 void printHeap(MinHeap*min_h);
 void destroyHeap(MinHeap*min_h);
-// int isEmpty(void ** min_h);
