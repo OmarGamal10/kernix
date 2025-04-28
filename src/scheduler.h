@@ -21,6 +21,8 @@
 #define SRTN 2
 #define RR 3
 
+#define MAX_PROCESSES 100
+
 // Process states
 #define READY 0
 #define RUNNING 1
