@@ -4,7 +4,6 @@
 
 
 
-
 int algorithm;          
 int quantum;   
 int arr_msgq_id;
@@ -14,7 +13,7 @@ void* readyQueue;
 PCB* PCB_table_head = NULL;
 PCB* PCB_table_tail = NULL;
 int process_count = 0;   
-int static_process_count = 0;
+int static_process_count=0;
 int first_time = 0;
 int first_arrival_time;
 PCB* running_process = NULL; 
@@ -173,7 +172,7 @@ void check_arrivals()
                 {
                     terminated = true;
                 }
-                return; // Done for this tick
+                return; 
             }
             else if (msg.process_id == -1)
             {
@@ -306,6 +305,8 @@ void handle_finished_process()
             perror("Error receiving completion message");
         }
         running_process->ending_time = current_time;
+        printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
+        printf("Process %d finished at time %d\n", running_process->id, current_time);
         log_process_state(running_process, "finished");
 
         PCB_remove(running_process);
@@ -493,11 +494,13 @@ void stop_process(PCB *process)
 
 void log_process_state(PCB* process, char* state) {
     if (!process || !logFile) return;
+    process->wait_time = current_time - process->arrival_time - (process->runtime - process->remaining_time);
     if(strcmp(state,"finished")!=0)
-
+    {
         fprintf(logFile, "At time %d process %d %s arr %d total %d remain %d wait %d\n",
-                current_time, process->id, state, process->arrival_time,
-                process->runtime, process->remaining_time, process->wait_time);
+            current_time, process->id, state, process->arrival_time,
+            process->runtime, process->remaining_time, process->wait_time); 
+    }
     else
     {
         int TA = process->ending_time - process->arrival_time;
