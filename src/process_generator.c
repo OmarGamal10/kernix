@@ -480,3 +480,7 @@ void clear_resources(int signum)
 
     exit(0);
 }
+
+//os-sim
+//arrived remove
+//process dec rmeining

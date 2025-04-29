@@ -235,7 +235,7 @@ void check_arrivals()
 
             printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
             printf("Process %d arrived at time %d\n", new_process->id, current_time);
-            log_process_state(new_process, "arrived");
+            //log_process_state(new_process, "arrived");
             processes_received++;
 
             // Peek at the next message non-blocking
