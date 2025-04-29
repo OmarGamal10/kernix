@@ -12,7 +12,6 @@ int remaining_time = 0; // Placeholder for remaining time
 void run_process(int runtime, int id, int *current_shm_ptr)
 {
     // Process terminates when the shared memory value reaches 0
-
     while (remaining_time > 0)
     {
         remaining_time = *current_shm_ptr; // Get the remaining time from shared memory
