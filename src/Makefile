@@ -7,14 +7,12 @@ LDFLAGS = -lm
 
 # Directories
 SRC_DIR    = .
-OBJ_DIR    = obj
-BIN_DIR    = bin
 MODELS_DIR = models
 
 # Target executables
-PROCESS_GENERATOR = $(BIN_DIR)/process_generator
-SCHEDULER        = $(BIN_DIR)/scheduler
-PROCESS          = $(BIN_DIR)/process
+PROCESS_GENERATOR = os-sim
+SCHEDULER        = scheduler
+PROCESS          = process
 
 # Source files
 CLK_SRC         = $(SRC_DIR)/clk.c
@@ -25,17 +23,17 @@ QUEUE_SRC       = $(MODELS_DIR)/Queue/queue.c
 MINHEAP_SRC     = $(MODELS_DIR)/minHeap1/minHeap.c
 
 # Object files
-CLK_OBJ         = $(OBJ_DIR)/clk.o
-SCHEDULER_OBJ   = $(OBJ_DIR)/scheduler.o
-PROCESS_GEN_OBJ = $(OBJ_DIR)/process_generator.o
-PROCESS_OBJ     = $(OBJ_DIR)/process.o
-QUEUE_OBJ       = $(OBJ_DIR)/queue.o
-MINHEAP_OBJ     = $(OBJ_DIR)/minheap.o
+CLK_OBJ         = clk.o
+SCHEDULER_OBJ   = scheduler.o
+PROCESS_GEN_OBJ = process_generator.o
+PROCESS_OBJ     = process.o
+QUEUE_OBJ       = queue.o
+MINHEAP_OBJ     = minheap.o
 
 .PHONY: all clean keyfile setup
 
 # Default target - build all executables
-all: setup $(PROCESS_GENERATOR) $(PROCESS) keyfile
+all: $(PROCESS_GENERATOR) $(PROCESS) keyfile
 
 # Create necessary directories
 setup:
@@ -83,4 +81,4 @@ $(MINHEAP_OBJ): $(MINHEAP_SRC) $(MODELS_DIR)/minHeap1/minHeap.h
 
 # Clean up build files
 clean:
-	@rm -rf $(OBJ_DIR) $(BIN_DIR) keyfile
+	@rm -rf	*.o $(PROCESS_GENERATOR) $(SCHEDULER) $(PROCESS) keyfile
