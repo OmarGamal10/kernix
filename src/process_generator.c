@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
         int quantum = 1;         // Default quantum for RR
         int processCount = 0;
         arguments_Reader(argc, argv, &algoritm_type, &quantum, &processCount, process_list);
-
+        printf("test %d\n", processCount);
 
         if (processCount == 0)
         {
@@ -182,6 +182,7 @@ void arguments_Reader(int argc, char *argv[], int *algorithm_type, int *quantum,
         if (strcmp(argv[5], "-f") == 0)
         {
             *processCount = read_processes(argv[6], process_list); // Dereference the pointer
+            printf("test rr %d\n", *processCount);
             display_processes(process_list, *processCount);
         }
         else
@@ -248,16 +249,17 @@ int read_processes(const char *filename, process_data process_list[])
         }
 
         // Parse the process information
-        if (sscanf(line, "%d\t%d\t%d\t%d",
+        if (sscanf(line, "%d\t%d\t%d\t%d\t%d",
                    &process_list[process_count].id,
                    &process_list[process_count].arrival_time,
                    &process_list[process_count].runtime,
-                   &process_list[process_count].priority) == 4)
+                   &process_list[process_count].priority,
+                   &process_list[process_count].memsize) == 5)
         {
-
             process_list[process_count].pid = 0;
-
+            
             process_count++;
+            
             if (process_count >= MAX_PROCESSES)
             {
                 printf("\033[1;31m");
@@ -268,10 +270,10 @@ int read_processes(const char *filename, process_data process_list[])
             }
         }
     }
-
-    fclose(file);
     return process_count;
 }
+
+
 
 // Function to display the list of processes
 void display_processes(process_data process_list[], int count)
@@ -280,17 +282,18 @@ void display_processes(process_data process_list[], int count)
     printf("[Process Generator] ");
     printf("\033[0m");
     printf("\nProcess List:\n");
-    printf("ID\tArrival\tRuntime\tPriority\tPID\n");
+    printf("ID\tArrival\tRuntime\tPriority\tPID\tmemsize\n");
     printf("------------------------------------------------\n");
 
     for (int i = 0; i < count; i++)
     {
-        printf("%d\t%d\t%d\t%d\t%d\n",
+        printf("%d\t%d\t%d\t%d\t%d\t%d\n",
                process_list[i].id,
                process_list[i].arrival_time,
                process_list[i].runtime,
                process_list[i].priority,
-               process_list[i].pid);
+               process_list[i].pid,
+               process_list[i].memsize);
     }
 }
 
@@ -380,6 +383,7 @@ void sending_proceess(int *next_process_idx, int processCount, int current_time,
         msg.priority = process_list[*next_process_idx].priority;
         msg.pid = process_pid;
         msg.shm_id = shm_id;
+        msg.memsize = process_list[*next_process_idx].memsize; // Add memory size to the message
         msg.mtype = 1; // Any positive number
 
         printf("\033[1;31m");

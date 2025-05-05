@@ -25,6 +25,7 @@ typedef struct
     int priority;
     pid_t pid;
     int completed;
+    int memsize;
 } process_data;
 
 void sigchld_handler(int sig);
