@@ -8,6 +8,11 @@ int compG_msgq_id = -1; // Message queue ID for completion messages
 
 pid_t scheduler_pid = -1;
 
+process_data* waiting_list_HEAD;
+process_data* waiting_list_TAIL;
+
+memory_block_t *memory_root = NULL;
+
 // Signal handler for SIGCHLD to handle terminated child processes
 void sigchld_handler(int sig)
 {
@@ -31,8 +36,9 @@ process_data process_list[MAX_PROCESSES];
 
 int main(int argc, char *argv[])
 {
-
+    memory_root = create_memory();
     signals_handling();
+
     pid_t clk_pid = fork();
 
     if (clk_pid == -1)
@@ -102,6 +108,9 @@ int main(int argc, char *argv[])
         int next_process_idx = 0;
         int current_time = -1;
 
+        waiting_list_HEAD = NULL;
+        waiting_list_TAIL = NULL;
+
         while (get_clk() < 0)
         {
         }
@@ -124,8 +133,10 @@ int main(int argc, char *argv[])
                 {
                     break;
                 }
-                sending_proceess(&next_process_idx, processCount, current_time, &processes_sent);
 
+                sending_waiting_proccess(current_time, &processes_sent);
+
+                sending_arrival_processes(&next_process_idx, processCount, current_time, &processes_sent);
 
                 there_is_no_processes(processes_sent);
 
@@ -303,7 +314,7 @@ int check_no_more_processes(int next_process_idx, int processCount)
     ProcessMessage msg;
     msg.mtype = 1; // Any positive number
 
-    if (next_process_idx >= processCount)
+    if (next_process_idx >= processCount && waiting_list_HEAD == NULL)
     {
         // All processes have been sent, signal completion
         msg.process_id = -2; // Termination signal
@@ -325,82 +336,107 @@ int check_no_more_processes(int next_process_idx, int processCount)
     return 0;
 }
 
-void sending_proceess(int *next_process_idx, int processCount, int current_time, int *processes_sent)
-{
+void sending_waiting_proccess (int current_time, int *processes_send){
+    process_data* currentP = waiting_list_HEAD;
+    while(currentP)
+    {
+        memory_block_t* current = allocateMemory(memory_root, currentP->memory_size);
+        if(current != NULL)
+        {
+            waiting_list_remove(currentP);
+            current->processId = currentP->id;
+            *processes_send += sending_process(currentP, current_time);
+        }
+
+        currentP = currentP->next;
+    }
+
+}
+
+int sending_process(process_data * process, int current_time){
     ProcessMessage msg;
+    // Create shared memory for this process
+    int shm_id = shmget(IPC_PRIVATE, sizeof(int), 0666 | IPC_CREAT);
+    if (shm_id == -1)
+    {
+        perror("Failed to create shared memory");
+        return 0;
+    }
+
+    int *shm_ptr = (int *)shmat(shm_id, NULL, 0);
+    if (shm_ptr == (void *)-1)
+    {
+        perror("Failed to attach shared memory");
+        shmctl(shm_id, IPC_RMID, NULL); // Clean up shared memory
+        return 0;
+    }
+
+    *shm_ptr = process->runtime; // Initialize shared memory with runtime
+
+    // Fork the process
+    pid_t process_pid = fork();
+
+    if (process_pid == -1)
+    {
+        perror("Failed to fork process");
+        shmdt(shm_ptr);
+        shmctl(shm_id, IPC_RMID, NULL);
+        return 0;
+    }
+
+    if (process_pid == 0)
+    { // Child process
+        char runtime_str[20], id_str[20], shm_id_str[20];
+        sprintf(runtime_str, "%d", process->runtime);
+        sprintf(id_str, "%d", process->id);
+        sprintf(shm_id_str, "%d", shm_id);
+
+        execl("./bin/process", "process", runtime_str, id_str, shm_id_str, NULL);
+
+        perror("Failed to execute process");
+        exit(1);
+    }
+
+    kill(process_pid, SIGSTOP);
+    process->pid = process_pid;
+
+    msg.process_id = process->id;
+    msg.arrival_time = process->arrival_time;
+    msg.runtime = process->runtime;
+    msg.priority = process->priority;
+    msg.pid = process_pid;
+    msg.shm_id = shm_id;
+    msg.mtype = 1; // Any positive number
+
+    printf("\033[1;31m");
+    printf("[Process Generator] ");
+    printf("\033[0m");
+    printf("Forked and sending process %d to scheduler at time %d\n",
+           msg.process_id, current_time);
+
+    if (msgsnd(arrG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
+    {
+        perror("Error sending process message");
+    }
+
+    shmdt(shm_ptr);
+    return 1;
+}
+
+void sending_arrival_processes(int *next_process_idx, int processCount, int current_time, int *processes_sent)
+{
     while (*next_process_idx < processCount &&
            process_list[*next_process_idx].arrival_time <= current_time)
     {
-
-        // Create shared memory for this process
-        int shm_id = shmget(IPC_PRIVATE, sizeof(int), 0666 | IPC_CREAT);
-        if (shm_id == -1)
+        memory_block_t* memory = allocateMemory(memory_root, process_list[*next_process_idx].memory_size);
+        if(memory == NULL)
+            waiting_list_add(&process_list[*next_process_idx]);
+        else
         {
-            perror("Failed to create shared memory");
-            continue;
+            process_data* process = &process_list[*next_process_idx];
+            *processes_sent += sending_process(process, current_time);
         }
-
-        int *shm_ptr = (int *)shmat(shm_id, NULL, 0);
-        if (shm_ptr == (void *)-1)
-        {
-            perror("Failed to attach shared memory");
-            shmctl(shm_id, IPC_RMID, NULL); // Clean up shared memory
-            continue;
-        }
-
-        *shm_ptr = process_list[*next_process_idx].runtime; // Initialize shared memory with runtime
-
-        // Fork the process
-        pid_t process_pid = fork();
-
-        if (process_pid == -1)
-        {
-            perror("Failed to fork process");
-            shmdt(shm_ptr);
-            shmctl(shm_id, IPC_RMID, NULL);
-            continue;
-        }
-
-        if (process_pid == 0)
-        { // Child process
-            char runtime_str[20], id_str[20], shm_id_str[20];
-            sprintf(runtime_str, "%d", process_list[*next_process_idx].runtime);
-            sprintf(id_str, "%d", process_list[*next_process_idx].id);
-            sprintf(shm_id_str, "%d", shm_id);
-
-            execl("./bin/process", "process", runtime_str, id_str, shm_id_str, NULL);
-
-            perror("Failed to execute process");
-            exit(1);
-        }
-
-        kill(process_pid, SIGSTOP);
-        process_list[*next_process_idx].pid = process_pid;
-
-        msg.process_id = process_list[*next_process_idx].id;
-        msg.arrival_time = process_list[*next_process_idx].arrival_time;
-        msg.runtime = process_list[*next_process_idx].runtime;
-        msg.priority = process_list[*next_process_idx].priority;
-        msg.pid = process_pid;
-        msg.shm_id = shm_id;
-        msg.memsize = process_list[*next_process_idx].memsize; // Add memory size to the message
-        msg.mtype = 1; // Any positive number
-
-        printf("\033[1;31m");
-        printf("[Process Generator] ");
-        printf("\033[0m");
-        printf("Forked and sending process %d to scheduler at time %d\n",
-               msg.process_id, current_time);
-
-        if (msgsnd(arrG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
-        {
-            perror("Error sending process message");
-        }
-
-        shmdt(shm_ptr);
-
         (*next_process_idx)++;
-        (*processes_sent)++;
     }
 }
 
@@ -430,10 +466,61 @@ void notifySchedulerFinishedProcess(pid_t pid)
     msg.mtype = 1;
     msg.process_id = pid;
     msg.finish_time = get_clk();
+    deallocate_memory(memory_root, pid); // Deallocate memory for the finished process   
 
     if (msgsnd(compG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
     {
         perror("Error sending completion message");
+    }
+}
+
+void waiting_list_remove(process_data* process)
+{
+    if (waiting_list_HEAD == NULL)
+    {
+        return; // List is empty
+    }
+
+    if (waiting_list_HEAD == process)
+    {
+        waiting_list_HEAD = waiting_list_HEAD->next;
+        if (waiting_list_HEAD == NULL)
+        {
+            waiting_list_TAIL = NULL; // List is now empty
+        }
+    }
+    else
+    {
+        process_data* current = waiting_list_HEAD;
+        while (current->next != NULL && current->next != process)
+        {
+            current = current->next;
+        }
+
+        if (current->next == process)
+        {
+            current->next = process->next;
+            if (waiting_list_TAIL == process)
+            {
+                waiting_list_TAIL = current; // Update tail if necessary
+            }
+        }
+    }
+}
+
+void waiting_list_add(process_data* process)
+{
+    if (waiting_list_HEAD == NULL)
+    {
+        waiting_list_HEAD = process;
+        waiting_list_TAIL = process;
+        process->next = NULL;
+    }
+    else
+    {
+        waiting_list_TAIL->next = process;
+        waiting_list_TAIL = process;
+        process->next = NULL;
     }
 }
 
@@ -450,6 +537,11 @@ void clear_resources(int signum)
     printf("\033[0m");
     printf("Cleaning up resources...\n");
 
+
+    while(waiting_list_HEAD != NULL)
+    {
+        waiting_list_remove(waiting_list_HEAD);
+    }
     // Remove message queue if it exists
     if (arrG_msgq_id != -1)
     {
@@ -484,6 +576,8 @@ void clear_resources(int signum)
 
     exit(0);
 }
+
+
 
 //os-sim
 //arrived remove
