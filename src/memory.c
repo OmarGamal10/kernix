@@ -29,7 +29,7 @@ int highestPowerOf2(int x) {
  *
  * @return memory_block_t* - The memory block
  */
-memory_block_t *initMemory() {
+memory_block_t *create_memory() {
   memory_block_t *memory = malloc(sizeof(memory_block_t));
   memory->size = TOTAL_MEMORY_SIZE;
   memory->start = 0;
@@ -76,10 +76,10 @@ memory_block_t *initializeMemoryBlock(int size, int start, int end) {
  * @param processId - The process ID
  * @return memory_block_t* - The memory block
  */
-memory_block_t *allocateMemory(memory_block_t *root, int size, int processId) {
+memory_block_t *allocateMemory(memory_block_t *root, int size) {
   if (root == NULL)
     return NULL;
-
+    
   if (root->isFree == 0)
     return NULL;
 
@@ -87,12 +87,11 @@ memory_block_t *allocateMemory(memory_block_t *root, int size, int processId) {
     return NULL;
 
   if (!root->left && !root->right && root->size == highestPowerOf2(size)) {
-    root->processId = processId;
     root->isFree = 0;
     return root;
   }
 
-  memory_block_t *left = allocateMemory(root->left, size, processId);
+  memory_block_t *left = allocateMemory(root->left, size);
   if (left != NULL)
     return left;
 
@@ -103,16 +102,16 @@ memory_block_t *allocateMemory(memory_block_t *root, int size, int processId) {
       root->left =
           initializeMemoryBlock(leftSize, root->start, root->start + leftSize);
       root->left->parent = root;
-      return allocateMemory(root->left, size, processId);
+      return allocateMemory(root->left, size);
     } else if (root->right == NULL) {
       root->right =
           initializeMemoryBlock(leftSize, root->start + leftSize, root->end);
       root->right->parent = root;
-      return allocateMemory(root->right, size, processId);
+      return allocateMemory(root->right, size);
     }
   }
 
-  memory_block_t *right = allocateMemory(root->right, size, processId);
+  memory_block_t *right = allocateMemory(root->right, size);
   if (right != NULL)
     return right;
   return NULL;
@@ -124,19 +123,24 @@ memory_block_t *allocateMemory(memory_block_t *root, int size, int processId) {
  * @param root - The root of the memory block
  * @param processId - The process ID
  */
-void freeMemory(memory_block_t *root, int processId) {
+void deallocate_memory(memory_block_t *root, pid_t processId) {
   if (root == NULL)
     return;
 
   if (root->processId == processId) {
-    // remove me from tree
+    // remove it from the tree
     if (root == root->parent->left) {
       root->parent->left = NULL;
     } else {
       root->parent->right = NULL;
     }
 
+    memory_block_t* prev = root;
+
     root = root->parent;
+
+    free(prev);
+
     while (!root->left && !root->right && root->parent) {
       memory_block_t *parent = root->parent;
       if (parent->left == root) {
@@ -150,25 +154,10 @@ void freeMemory(memory_block_t *root, int processId) {
     return;
   }
 
-  freeMemory(root->left, processId);
-  freeMemory(root->right, processId);
+  deallocate_memory(root->left, processId);
+  deallocate_memory(root->right, processId);
 }
 
-/**
- * isThereEnoughSpaceFor - Check if there is enough space for a memory block
- *
- * @param root - The root of the memory block
- * @param size - The size of the memory block
- * @return int - 1 if there is enough space, 0 otherwise
- */
-int isThereEnoughSpaceFor(memory_block_t *root, int size) {
-  memory_block_t *block = allocateMemory(root, size, 0);
-  if (block != NULL) {
-    freeMemory(root, 0);
-    return 1;
-  }
-  return 0;
-}
 
 /**
  * findMemoryBlock - Find a memory block by address used by printing
@@ -214,75 +203,6 @@ memory_block_t *findMemoryBlockByProcessId(memory_block_t *root,
 }
 
 /**
- * fancyPrintTree - Print the memory layout in a fancy way
- *
- * @param root - The root of the memory block
- * @param level - The level of the memory block
- */
-void fancyPrintTree(memory_block_t *root, int level) {
-  if (root == NULL)
-    return;
-
-  // printf("%s", root->isFree ? ANSI_GREEN : ANSI_RED);
-
-  for (int i = 0; i < level; i++)
-    printf("|  ");
-
-  printf("[%d-%d] %s - Process ID: %d\n", root->start, root->end,
-         root->isFree ? "Free" : "Allocated", root->processId);
-
-  // printf(ANSI_RESET);
-
-  fancyPrintTree(root->left, level + 1);
-  fancyPrintTree(root->right, level + 1);
-}
-
-/**
- * fancyPrintMemoryBar - Display the memory layout
- *
- * @param root - The root of the memory block
- */
-// void fancyPrintMemoryBar(memory_block_t *root) {
-//   if (root == NULL)
-//     return;
-
-//   printf(ANSI_BLACK);
-//   for (int addr = 0; addr < 1024; addr += 8) {
-//     memory_block_t *block = findMemoryBlock(root, addr);
-//     if (block != NULL && !block->isFree) {
-//       switch (block->processId % 6) {
-//       case 0:
-//         printf(ANSI_RED_BG);
-//         break;
-//       case 1:
-//         printf(ANSI_GREEN_BG);
-//         break;
-//       case 2:
-//         printf(ANSI_YELLOW_BG);
-//         break;
-//       case 3:
-//         printf(ANSI_BLUE_BG);
-//         break;
-//       case 4:
-//         printf(ANSI_MAGENTA_BG);
-//         break;
-//       case 5:
-//         printf(ANSI_CYAN_BG);
-//         break;
-//       default:
-//         printf(ANSI_RED_BG);
-//         break;
-//       }
-//       printf("%d", block->processId);
-//     } else {
-//       printf(ANSI_WHITE_BG " ");
-//     }
-//   }
-//   printf(ANSI_RESET);
-//   printf("\n");
-// }
-
-/**
  * createMemoryLogFile - Create the memory log file
  */
 void createMemoryLogFile() {
@@ -295,111 +215,3 @@ void createMemoryLogFile() {
   printf("Started Logging\n");
   fclose(logFileptr);
 }
-
-/**
- * memoryLogger - Log the memory allocation
- *
- * @param root - The root of the memory block
- * @param time - The time
- * @param message - The message
- * @param processId - The process ID
- * @param size - The size of the memory block
- */
-void memoryLogger(memory_block_t *root, int time, const char *message,
-                  int processId, int size) {
-  FILE *file = fopen(LOG_FILE, "a");
-  if (file == NULL)
-    return;
-
-  memory_block_t *block = findMemoryBlockByProcessId(root, processId);
-  int start = block->start;
-  int end = block->end;
-
-  if (strcmp(message, "Allocated") == 0)
-    fprintf(file, "At time %d %s %d bytes for process %d from %d to %d\n", time,
-            message, size, processId, start, end);
-  else
-    fprintf(file, "At time %d %s %d bytes from process %d from %d to %d\n",
-            time, message, size, processId, start, end);
-
-  fclose(file);
-}
-// NOTE: left for testing uncomment to test
-//
-//  int main() {
-//    createMemoryLogFile();
-//    memory_block_t *memory = initMemory();
-//    printf("Memory block size: %d\n", memory->size);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    allocateMemory(memory, 256, 1);
-//    memoryLogger(0, "Allocated", 1, 256, 0, 256);
-//    memoryLogger(2, "freed", 1, 256, 0, 256);
-//    allocateMemory(memory, 32, 2);
-//    allocateMemory(memory, 64, 3);
-//    allocateMemory(memory, 128, 3);
-//
-//    allocateMemory(memory, 256, 4);
-//    allocateMemory(memory, 40, 5);
-//    allocateMemory(memory, 40, 6);
-//    allocateMemory(memory, 8, 9);
-//    fancyPrintTree(memory, 0);
-//
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//
-//    freeMemory(memory, 4);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//    freeMemory(memory, 3);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//    freeMemory(memory, 1);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//    freeMemory(memory, 9);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//    freeMemory(memory, 2);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//    freeMemory(memory, 5);
-//    freeMemory(memory, 6);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//    allocateMemory(memory, 256, 1);
-//    allocateMemory(memory, 32, 2);
-//    allocateMemory(memory, 64, 3);
-//    allocateMemory(memory, 128, 3);
-//
-//    allocateMemory(memory, 256, 4);
-//    allocateMemory(memory, 40, 5);
-//    allocateMemory(memory, 40, 6);
-//    allocateMemory(memory, 8, 9);
-//    fancyPrintTree(memory, 0);
-//    printf("\n");
-//    fancyPrintMemoryBar(memory);
-//    return 0;
-//  }
-//
-//
-// int main() {
-//   memory_block_t *memory = initMemory();
-//   if (isThereEnoughSpaceFor(memory, 256))
-//     printf("There is enough space for 256 bytes\n");
-//   else
-//     printf("There is not enough space for 256 bytes\n");
-//   allocateMemory(memory, 256, 1);
-//   allocateMemory(memory, 256, 2);
-//   allocateMemory(memory, 256, 3);
-//   if (isThereEnoughSpaceFor(memory, 256))
-//     printf("There is enough space for 256 bytes\n");
-//   else
-//     printf("There is not enough space for 256 bytes\n");
-// }

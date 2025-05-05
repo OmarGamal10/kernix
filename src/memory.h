@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 /**
  * memory_block_t
  * A struct to represent a memory block in the memory
@@ -7,7 +10,7 @@ typedef struct memory_block {
     int realSize;
     int start;
     int end;
-    int processId;
+    pid_t processId;
     int isFree;
   
     // tree like pointers
@@ -24,14 +27,9 @@ typedef struct memory_block {
   memory_block_t *findMemoryBlockByProcessId(memory_block_t *root, int processId);
   
   // API
-  memory_block_t *initMemory();
-  memory_block_t *allocateMemory(memory_block_t *root, int size, int processId);
-  void freeMemory(memory_block_t *root, int processId);
-  int isThereEnoughSpaceFor(memory_block_t *root, int size);
+  memory_block_t *create_memory();
+  memory_block_t *allocateMemory(memory_block_t *root, int size);
+  void deallocate_memory(memory_block_t *root, pid_t processId);
   
   // output functions
   void createMemoryLogFile();
-  void memoryLogger(memory_block_t *root, int time, const char *message,
-                    int processId, int size);
-  void fancyPrintTree(memory_block_t *root, int level);
-  void fancyPrintMemoryBar(memory_block_t *root);
