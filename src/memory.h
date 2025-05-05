@@ -24,7 +24,7 @@ typedef struct memory_block {
   int highestPowerOf2(int x);
   memory_block_t *initializeMemoryBlock(int size, int start, int end);
   memory_block_t *findMemoryBlock(memory_block_t *root, int addr);
-  memory_block_t *findMemoryBlockByProcessId(memory_block_t *root, int processId);
+  memory_block_t *findMemoryBlockByProcessId(memory_block_t *root, pid_t processId);
   
   // API
   memory_block_t *create_memory();

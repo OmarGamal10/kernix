@@ -2,6 +2,7 @@
 
 
 int processCount = 0;
+FILE* memoryLogFile; // File pointer for memory log
 
 int arrG_msgq_id = -1; // Message queue ID for arrival messages
 int compG_msgq_id = -1; // Message queue ID for completion messages
@@ -38,6 +39,14 @@ int main(int argc, char *argv[])
 {
     memory_root = create_memory();
     signals_handling();
+
+    memoryLogFile = fopen("memory.log", "w");
+        if (memoryLogFile == NULL)
+        {
+            perror("Error opening memory log file");
+            exit(1);
+        }
+        fprintf(memoryLogFile, "#At time x allocated y bytes for process z from i to j\n");
 
     pid_t clk_pid = fork();
 
@@ -104,6 +113,8 @@ int main(int argc, char *argv[])
         }
 
         sync_clk();
+        // Create log file for memory allocation
+        
 
         int next_process_idx = 0;
         int current_time = -1;
@@ -265,7 +276,7 @@ int read_processes(const char *filename, process_data process_list[])
                    &process_list[process_count].arrival_time,
                    &process_list[process_count].runtime,
                    &process_list[process_count].priority,
-                   &process_list[process_count].memsize) == 5)
+                   &process_list[process_count].memory_size) == 5)
         {
             process_list[process_count].pid = 0;
             
@@ -281,6 +292,7 @@ int read_processes(const char *filename, process_data process_list[])
             }
         }
     }
+    fclose(file);
     return process_count;
 }
 
@@ -304,7 +316,7 @@ void display_processes(process_data process_list[], int count)
                process_list[i].runtime,
                process_list[i].priority,
                process_list[i].pid,
-               process_list[i].memsize);
+               process_list[i].memory_size);
     }
 }
 
@@ -433,6 +445,7 @@ void sending_arrival_processes(int *next_process_idx, int processCount, int curr
             waiting_list_add(&process_list[*next_process_idx]);
         else
         {
+            log_memory_stats(&process_list[*next_process_idx], "allocated", current_time, memory->start, memory->end);
             process_data* process = &process_list[*next_process_idx];
             *processes_sent += sending_process(process, current_time);
         }
@@ -466,6 +479,11 @@ void notifySchedulerFinishedProcess(pid_t pid)
     msg.mtype = 1;
     msg.process_id = pid;
     msg.finish_time = get_clk();
+    printf("dddddddddddddddddddd");
+    memory_block_t* memory = findMemoryBlockByProcessId(memory_root, pid);
+    process_data process;
+    process.id = 1;
+    log_memory_stats(&process, "deallocated", msg.finish_time, memory->start, memory->end);
     deallocate_memory(memory_root, pid); // Deallocate memory for the finished process   
 
     if (msgsnd(compG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
@@ -522,6 +540,11 @@ void waiting_list_add(process_data* process)
         waiting_list_TAIL = process;
         process->next = NULL;
     }
+}
+
+void log_memory_stats(process_data* process, char* state, int current_time, int start, int end) {
+    fprintf(memoryLogFile, "At time %d %s %d bytes for process %d from %d to %d\n",
+        current_time, state, process->memory_size, process->id, start, end); 
 }
 
 // Function to clean up resources

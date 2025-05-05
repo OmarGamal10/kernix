@@ -187,8 +187,7 @@ memory_block_t *findMemoryBlock(memory_block_t *root, int addr) {
  * @param processId - The process ID
  * @return memory_block_t* - The memory block
  */
-memory_block_t *findMemoryBlockByProcessId(memory_block_t *root,
-                                           int processId) {
+memory_block_t *findMemoryBlockByProcessId(memory_block_t *root, pid_t processId) {
   if (root == NULL)
     return NULL;
 
