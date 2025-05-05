@@ -557,8 +557,10 @@ void waiting_list_add(process_data* process)
 }
 
 void log_memory_stats(process_data* process, char* state, int current_time, int start, int end) {
-    fprintf(memoryLogFile, "At time %d %s %d bytes for process %d from %d to %d\n",
-        current_time, state, process->memory_size, process->id, start, end); 
+    (strcmp(state, "allocated") == 0) ? fprintf(memoryLogFile, "At time %d %s %d bytes for process %d from %d to %d\n",
+        current_time, state, process->memory_size, process->id, start, end - 1) :
+    fprintf(memoryLogFile, "At time %d %s %d bytes from process %d from %d to %d\n",
+        current_time, state, process->memory_size, process->id, start, end - 1); 
     fflush(memoryLogFile);
 }
 

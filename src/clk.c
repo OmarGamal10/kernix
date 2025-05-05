@@ -53,7 +53,7 @@ void run_clk()
 {
     while (1)
     {
-        usleep(1000000); 
+        usleep(10000); 
         (*shmaddr)++;
     }
 }
@@ -69,7 +69,7 @@ void sync_clk()
     while ((int)shmid == -1)
     {
         // Make sure that the clock exists
-        usleep(1000000); 
+        usleep(10000); 
         shmid = shmget(SHKEY, 4, 0444);
     }
     shmaddr = (int *)shmat(shmid, (void *)0, 0);

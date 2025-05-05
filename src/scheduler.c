@@ -114,6 +114,10 @@ void run_scheduler()
             current_time = new_time;
 
             // Check if process finished
+            if (running_process && running_process->remaining_time >= 0)
+            {
+                update_process_times();
+            }
             if (running_process && running_process->remaining_time <= 0)
             {
                 handle_finished_process();
@@ -124,8 +128,6 @@ void run_scheduler()
             // Select next process if needed
             check_context_switch();
             
-            // Update process times
-            update_process_times();
         }
     }
     log_performance_stats();
