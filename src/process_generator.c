@@ -88,7 +88,6 @@ int main(int argc, char *argv[])
         int quantum = 1;         // Default quantum for RR
         int processCount = 0;
         arguments_Reader(argc, argv, &algoritm_type, &quantum, &processCount, process_list);
-        printf("test %d\n", processCount);
 
         if (processCount == 0)
         {
@@ -203,7 +202,6 @@ void arguments_Reader(int argc, char *argv[], int *algorithm_type, int *quantum,
         if (strcmp(argv[5], "-f") == 0)
         {
             *processCount = read_processes(argv[6], process_list); // Dereference the pointer
-            printf("test rr %d\n", *processCount);
             display_processes(process_list, *processCount);
         }
         else
@@ -349,17 +347,17 @@ int check_no_more_processes(int next_process_idx, int processCount)
 
 void sending_waiting_proccess (int current_time, int *processes_send){
     process_data* currentP = waiting_list_HEAD;
-    while(currentP)
+    while (currentP != NULL)
     {
-        memory_block_t* current = allocateMemory(memory_root, currentP->memory_size);
-        if(current != NULL)
-        {
-            waiting_list_remove(currentP);
-            *processes_send += sending_process(currentP, current_time);
-            current->processId = currentP->pid;
-        }
-
-        currentP = currentP->next;
+        printf("Sending waiting processes at time %d\n", current_time);
+        memory_block_t* memory = allocateMemory(memory_root, currentP->memory_size);
+        if(memory == NULL)
+            break;
+        log_memory_stats(currentP, "allocated", current_time, memory->start, memory->end);
+        waiting_list_remove(currentP);
+        *processes_send += sending_process(currentP, current_time);
+        memory->processId = currentP->pid;
+        currentP=currentP->next;
     }
 
 }
@@ -402,7 +400,7 @@ int sending_process(process_data * process, int current_time){
         sprintf(id_str, "%d", process->id);
         sprintf(shm_id_str, "%d", shm_id);
 
-        execl("./bin/process", "process", runtime_str, id_str, shm_id_str, NULL);
+        execl("process", "process", runtime_str, id_str, shm_id_str, NULL);
 
         perror("Failed to execute process");
         exit(1);
@@ -441,7 +439,12 @@ void sending_arrival_processes(int *next_process_idx, int processCount, int curr
     {
         memory_block_t* memory = allocateMemory(memory_root, process_list[*next_process_idx].memory_size);
         if(memory == NULL)
+        {
+            printf("added to waiting list\n");
             waiting_list_add(&process_list[*next_process_idx]);
+            printf("head %d\n", waiting_list_HEAD->id);
+            printf("tail %d\n", waiting_list_TAIL->id);
+        }
         else
         {
             
@@ -474,6 +477,7 @@ void there_is_no_processes(int processes_sent)
 }
 
 // Notify the scheduler when a process finishes
+
 void notifySchedulerFinishedProcess(pid_t pid)
 {
     CompletionMessage msg;
@@ -481,10 +485,9 @@ void notifySchedulerFinishedProcess(pid_t pid)
     msg.process_id = pid;
     msg.finish_time = get_clk();
     memory_block_t* memory = findMemoryBlockByProcessId(memory_root, pid);
-    process_data process;
-    process.id = 1;
-    log_memory_stats(&process, "freed", msg.finish_time, memory->start, memory->end);
-    deallocate_memory(memory_root, pid); // Deallocate memory for the finished process   
+    process_data* process = get_process_by_pid(pid);
+    log_memory_stats(process, "freed", msg.finish_time, memory->start, memory->end);
+    deallocate_memory(memory_root, pid); // Deallocate memory for the finished process   (
 
     if (msgsnd(compG_msgq_id, &msg, sizeof(msg) - sizeof(long), 0) == -1)
     {
@@ -492,38 +495,49 @@ void notifySchedulerFinishedProcess(pid_t pid)
     }
 }
 
-void waiting_list_remove(process_data* process)
+process_data* get_process_by_pid(pid_t pid)
 {
-    if (waiting_list_HEAD == NULL)
+    for(int i = 0; i < MAX_PROCESSES; i++)
     {
-        return; // List is empty
+        if (process_list[i].pid == pid)
+        {
+            return &process_list[i];
+        }
+    }
+    return NULL; // Process not found
+}
+
+int waiting_list_remove(process_data* process) {
+    if (waiting_list_HEAD == NULL || process == NULL) {
+        printf("Error: List is empty or invalid process pointer.\n");
+        return 0; // List is empty or invalid process
     }
 
-    if (waiting_list_HEAD == process)
-    {
+    if (waiting_list_HEAD == process) {
+        printf("Removing process %d from the head of the list.\n", process->id);
         waiting_list_HEAD = waiting_list_HEAD->next;
-        if (waiting_list_HEAD == NULL)
-        {
+        if (waiting_list_HEAD == NULL) {
             waiting_list_TAIL = NULL; // List is now empty
         }
+        return 1; // Successfully removed
     }
-    else
-    {
-        process_data* current = waiting_list_HEAD;
-        while (current->next != NULL && current->next != process)
-        {
-            current = current->next;
-        }
 
-        if (current->next == process)
-        {
-            current->next = process->next;
-            if (waiting_list_TAIL == process)
-            {
-                waiting_list_TAIL = current; // Update tail if necessary
-            }
-        }
+    process_data* current = waiting_list_HEAD;
+    while (current->next != NULL && current->next != process) {
+        current = current->next;
     }
+
+    if (current->next == process) {
+        printf("Removing process %d from the list.\n", process->id);
+        current->next = process->next;
+        if (waiting_list_TAIL == process) {
+            waiting_list_TAIL = current; // Update tail if necessary
+        }
+        return 1; // Successfully removed
+    }
+
+    printf("Process %d not found in the waiting list.\n", process->id);
+    return 0; // Process not found
 }
 
 void waiting_list_add(process_data* process)

@@ -44,6 +44,7 @@ void sending_waiting_proccess (int current_time, int *processes_send);
 void sending_arrival_processes(int *next_process_idx, int processCount, int current_time, int *processes_sent);
 void there_is_no_processes(int processes_sent);
 void clear_resources(int);
-void waiting_list_remove(process_data* process);               // Remove a process from the waiting list
+int waiting_list_remove(process_data* process);               // Remove a process from the waiting list
 void waiting_list_add(process_data* process);                  // Add a process to the list
 void log_memory_stats(process_data* process, char* state, int current_time, int start, int end) ;
+process_data* get_process_by_pid(pid_t pid);

@@ -125,35 +125,46 @@ memory_block_t *allocateMemory(memory_block_t *root, int size) {
  */
 void deallocate_memory(memory_block_t *root, pid_t processId) {
   if (root == NULL)
-    return;
-
+      return;
+  
+  // Check if this is the block we want to free
   if (root->processId == processId) {
-    // remove it from the tree
-    if (root == root->parent->left) {
-      root->parent->left = NULL;
-    } else {
-      root->parent->right = NULL;
-    }
-
-    memory_block_t* prev = root;
-
-    root = root->parent;
-
-    free(prev);
-
-    while (!root->left && !root->right && root->parent) {
+      // Mark the block as free
+      root->isFree = 1;
+      root->processId = -1;
+      
+      // Handle merging of free blocks - we need to go up the tree
+      memory_block_t *current = root;
       memory_block_t *parent = root->parent;
-      if (parent->left == root) {
-        parent->left = NULL;
-      } else {
-        parent->right = NULL;
+      
+      // If it has a parent, try to merge siblings
+      while (parent != NULL) {
+          // Check if sibling exists and is free
+          memory_block_t *sibling = (parent->left == current) ? parent->right : parent->left;
+          
+          // If both children are free, merge them by removing the children
+          if (sibling != NULL && sibling->isFree && current->isFree && 
+              !current->left && !current->right && !sibling->left && !sibling->right) {
+              
+              // Free the memory for the children
+              free(parent->left);
+              free(parent->right);
+              parent->left = NULL;
+              parent->right = NULL;
+              parent->isFree = 1;
+              
+              // Continue up the tree
+              current = parent;
+              parent = parent->parent;
+          } else {
+              // Can't merge further
+              break;
+          }
       }
-      root = parent;
-    }
-
-    return;
+      return;
   }
-
+  
+  // If not found, search in children
   deallocate_memory(root->left, processId);
   deallocate_memory(root->right, processId);
 }
