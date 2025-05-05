@@ -8,7 +8,8 @@ int algorithm;
 int quantum;   
 int arr_msgq_id;
 int comp_msgq_id;          
-FILE* logFile;          
+FILE* logFile;     
+FILE* memoryLogFile;     
 void* readyQueue;        
 PCB* PCB_table_head = NULL;
 PCB* PCB_table_tail = NULL;
@@ -70,7 +71,15 @@ void initialize(int alg, int q)
         perror("Failed to open log file");
         exit(1);
     }
+    memoryLogFile = fopen("memory.log", "w");
+    if (!logFile)
+    {
+        perror("Failed to open log file");
+        exit(1);
+    }
     fprintf(logFile, "#At time x process y state arr w total z remain y wait k\n");
+    fprintf(memoryLogFile, "#At time x allocated y bytes for process z from i to j\n");
+    
 
     // Open arrival message queue
     key_t arr_key = ftok("keyfile", 'a');
@@ -202,6 +211,7 @@ void check_arrivals()
             new_process->wait_time = 0;
             new_process->start_time = -1;
             new_process->status = READY;
+            new_process->memsize = msg.memsize; // Get the memory size from the message
 
             // Attach to the shared memory
             int *shm_ptr = (int *)shmat(msg.shm_id, NULL, 0);
@@ -553,6 +563,11 @@ void log_performance_stats()
         diffSquared += pow(WTA_Array[i] - WTA_AVG, 2);
     }
     fprintf(perfLogFile, "Std WTA = %.2f\n", pow(diffSquared / static_process_count, 1.0 / 2));
+}
+
+void log_memory_stats(PCB* process, char* state) {
+    fprintf(logFile, "At time %d %s %d bytes for process %d from %d to %d\n",
+        current_time, state, process->memsize, process->id, 0, 255); 
 }
 
 void PCB_add(PCB *process)

@@ -45,6 +45,7 @@ struct PCB {
     int shm_id;            // Shared memory ID
     int *shm_ptr;          // Pointer to shared memory
     int ending_time;       // Time when the process finished
+    int memsize;
 
 };
 
@@ -60,6 +61,7 @@ typedef struct {
     int priority;          // Priority of the process
     pid_t pid;             // Process ID in the system
     int shm_id;            // Shared memory ID
+    int memsize;
 } ProcessMessage;
 
 // Message structure for completion notifications
