@@ -7,12 +7,9 @@
 #define TOTAL_MEMORY_SIZE 1024
 #define LOG_FILE "memory.log"
 
-/**
- * highestPowerOf2 - Find the highest power of 2 that is less than or equal to x
- *
- * @param x - The number
- * @return int - The highest power of 2
- */
+
+// Find the highest power of 2 that is less than or equal to x
+
 int highestPowerOf2(int x) {
   if (x <= 0)
     return 1;
@@ -24,11 +21,8 @@ int highestPowerOf2(int x) {
   return block_size;
 }
 
-/**
- * creatememory - Initialize the memory block
- *
- * @return memory_block_t* - The memory block
- */
+
+ // Initialize the memory block
 memory_block_t *create_memory() {
   memory_block_t *memory = malloc(sizeof(memory_block_t));
   memory->size = TOTAL_MEMORY_SIZE;
@@ -43,14 +37,7 @@ memory_block_t *create_memory() {
   return memory;
 }
 
-/**
- * initializeMemoryBlock - Initialize a memory block
- *
- * @param size - The size of the memory block
- * @param start - The start address of the memory block
- * @param end - The end address of the memory block
- * @return memory_block_t* - The memory block
- */
+
 memory_block_t *initializeMemoryBlock(int size, int start, int end) {
   memory_block_t *block = malloc(sizeof(memory_block_t));
 
@@ -68,21 +55,6 @@ memory_block_t *initializeMemoryBlock(int size, int start, int end) {
   return block;
 }
 
-/**
- * allocateMemory - Allocate memory for a process
- *
- * @param root - The root of the memory block
- * @param size - The size of the memory block
- * @param processId - The process ID
- * @return memory_block_t* - The memory block
- */
-/**
- * allocateMemory - Allocate memory for a process
- *
- * @param root - The root of the memory block
- * @param size - The size of the memory block
- * @return memory_block_t* - The memory block
- */
 memory_block_t *allocateMemory(memory_block_t *root, int size) {
   // Base case: null check
   if (root == NULL)
@@ -153,12 +125,6 @@ memory_block_t *allocateMemory(memory_block_t *root, int size) {
   return NULL;
 }
 
-/**
- * deallocate_memory - Free memory for a process
- *
- * @param root - The root of the memory block
- * @param processId - The process ID
- */
 void deallocate_memory(memory_block_t *root, pid_t processId) {
   // Base case: null check
   if (root == NULL)
@@ -210,13 +176,7 @@ void deallocate_memory(memory_block_t *root, pid_t processId) {
 }
 
 
-/**
- * findMemoryBlock - Find a memory block by address used by printing
- *
- * @param root - The root of the memory block
- * @param addr - The address
- * @return memory_block_t* - The memory block
- */
+// findMemoryBlock - Find a memory block by address used by printing
 memory_block_t *findMemoryBlock(memory_block_t *root, int addr) {
   if (root == NULL)
     return NULL;
@@ -231,13 +191,7 @@ memory_block_t *findMemoryBlock(memory_block_t *root, int addr) {
   return findMemoryBlock(root->right, addr);
 }
 
-/**
- * findMemoryBlockByProcessId - Find a memory block by process ID
- *
- * @param root - The root of the memory block
- * @param processId - The process ID
- * @return memory_block_t* - The memory block
- */
+// findMemoryBlockByProcessId - Find a memory block by process ID
 memory_block_t *findMemoryBlockByProcessId(memory_block_t *root, pid_t processId) {
   if (root == NULL)
     return NULL;
@@ -252,9 +206,7 @@ memory_block_t *findMemoryBlockByProcessId(memory_block_t *root, pid_t processId
   return findMemoryBlockByProcessId(root->right, processId);
 }
 
-/**
- * createMemoryLogFile - Create the memory log file
- */
+
 void createMemoryLogFile() {
   FILE *logFileptr = fopen(LOG_FILE, "w");
   if (logFileptr == NULL) {
@@ -284,11 +236,6 @@ void fancyPrintTree(memory_block_t *root, int level) {
   fancyPrintTree(root->right, level + 1);
 }
 
-/**
- * fancyPrintMemoryBar - Display the memory layout
- *
- * @param root - The root of the memory block
- */
 void fancyPrintMemoryBar(memory_block_t *root) {
   if (root == NULL)
     return;
