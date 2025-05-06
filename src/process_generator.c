@@ -143,6 +143,8 @@ int main(int argc, char *argv[])
                     break;
                 }
 
+                usleep(20000);
+
                 sending_waiting_proccess(current_time, &processes_sent);
 
                 sending_arrival_processes(&next_process_idx, processCount, current_time, &processes_sent);

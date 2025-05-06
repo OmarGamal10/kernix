@@ -107,22 +107,58 @@ memory_block_t *allocateMemory(memory_block_t *root, int size) {
     return allocateMemory(root->right, size);
   }
 
-  // Try to allocate in left subtree if it exists
-  if (root->left != NULL) {
-    memory_block_t *left = allocateMemory(root->left, size);
-    if (left != NULL)
-      return left;
-  }
+  int leftBest = findBestAvailableBlock(root->left, requiredSize);
+  int rightBest = findBestAvailableBlock(root->right, requiredSize);
 
-  // Try to allocate in right subtree if it exists
-  if (root->right != NULL) {
-    memory_block_t *right = allocateMemory(root->right, size);
-    if (right != NULL)
+  if(leftBest <= rightBest) {
+    // Try to allocate in left subtree if it exists
+    if (root->left != NULL) {
+      memory_block_t *left = allocateMemory(root->left, size);
+      if (left != NULL)
+        return left;
+    }
+    // Try to allocate in right subtree if it exists
+    if (root->right != NULL) {
+      memory_block_t *right = allocateMemory(root->right, size);
+      if (right != NULL)
       return right;
+    }   
   }
-  
+  else
+  {
+    // Try to allocate in right subtree if it exists
+    if (root->right != NULL) {
+      memory_block_t *right = allocateMemory(root->right, size);
+      if (right != NULL)
+      return right;
+    }   
+    if (root->left != NULL) {
+      memory_block_t *left = allocateMemory(root->left, size);
+      if (left != NULL)
+        return left;
+    }
+  }
   // No suitable block found
   return NULL;
+}
+
+int findBestAvailableBlock(memory_block_t *root, int size) {
+  // Base case: null check
+  if (root == NULL)
+    return TOTAL_MEMORY_SIZE;
+
+  if(!root->left && !root->right && root->isFree && root->size >= size) {
+    return root->size;
+  }
+  // Check left and right children
+  int leftSize = findBestAvailableBlock(root->left, size);
+  int rightSize = findBestAvailableBlock(root->right, size);
+  // Return the smaller size
+  if (leftSize < rightSize) {
+    return leftSize;
+  } else {
+    return rightSize;
+  }
 }
 
 void deallocate_memory(memory_block_t *root, pid_t processId) {
