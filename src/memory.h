@@ -33,3 +33,24 @@ typedef struct memory_block {
   
   // output functions
   void createMemoryLogFile();
+
+
+  // =============================================================================
+//                   ANSI COLOR CODES
+// =============================================================================
+#define ANSI_RED "\x1b[31m"
+#define ANSI_GREEN "\x1b[32m"
+#define ANSI_RESET "\x1b[0m"
+#define ANSI_YELLOW "\x1b[33m"
+#define ANSI_BLUE "\x1b[34m"
+#define ANSI_MAGENTA "\x1b[35m"
+#define ANSI_CYAN "\x1b[36m"
+#define ANSI_WHITE "\x1b[37m"
+#define ANSI_RED_BG "\x1b[41m"
+#define ANSI_GREEN_BG "\x1b[42m"
+#define ANSI_YELLOW_BG "\x1b[43m"
+#define ANSI_BLUE_BG "\x1b[44m"
+#define ANSI_MAGENTA_BG "\x1b[45m"
+#define ANSI_CYAN_BG "\x1b[46m"
+#define ANSI_WHITE_BG "\x1b[47m"
+#define ANSI_BLACK "\x1b[30m"

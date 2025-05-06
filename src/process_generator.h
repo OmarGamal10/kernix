@@ -48,3 +48,6 @@ int waiting_list_remove(process_data* process);               // Remove a proces
 void waiting_list_add(process_data* process);                  // Add a process to the list
 void log_memory_stats(process_data* process, char* state, int current_time, int start, int end) ;
 process_data* get_process_by_pid(pid_t pid);
+
+void fancyPrintTree(memory_block_t *root, int level);
+void fancyPrintMemoryBar(memory_block_t *root);

@@ -180,6 +180,7 @@ void signals_handling()
     }
 }
 
+
 void arguments_Reader(int argc, char *argv[], int *algorithm_type, int *quantum, int *processCount, process_data process_list[])
 {
     if (argc != 7 && argc != 5)
@@ -352,7 +353,17 @@ void sending_waiting_proccess (int current_time, int *processes_send){
         printf("Sending waiting processes at time %d\n", current_time);
         memory_block_t* memory = allocateMemory(memory_root, currentP->memory_size);
         if(memory == NULL)
-            break;
+        {
+            printf("cannot allocate memory for process %d\n", currentP->id);
+            fancyPrintTree(memory_root, 0);
+            currentP=currentP->next;
+            continue;
+        }
+        else
+        {
+            printf("allocated memory for process %d\n", currentP->id);
+        }
+
         log_memory_stats(currentP, "allocated", current_time, memory->start, memory->end);
         waiting_list_remove(currentP);
         *processes_send += sending_process(currentP, current_time);
@@ -432,6 +443,17 @@ int sending_process(process_data * process, int current_time){
     return 1;
 }
 
+void print_waiting_list()
+{
+    process_data* current = waiting_list_HEAD;
+    printf("Waiting List:\n");
+    while (current != NULL)
+    {
+        printf("Process ID: %d\n", current->id);
+        current = current->next;
+    }
+}
+
 void sending_arrival_processes(int *next_process_idx, int processCount, int current_time, int *processes_sent)
 {
     while (*next_process_idx < processCount &&
@@ -442,8 +464,7 @@ void sending_arrival_processes(int *next_process_idx, int processCount, int curr
         {
             printf("added to waiting list\n");
             waiting_list_add(&process_list[*next_process_idx]);
-            printf("head %d\n", waiting_list_HEAD->id);
-            printf("tail %d\n", waiting_list_TAIL->id);
+            print_waiting_list();
         }
         else
         {
@@ -493,6 +514,7 @@ void notifySchedulerFinishedProcess(pid_t pid)
     {
         perror("Error sending completion message");
     }
+    
 }
 
 process_data* get_process_by_pid(pid_t pid)

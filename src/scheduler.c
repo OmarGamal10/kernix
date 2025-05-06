@@ -220,6 +220,10 @@ void check_arrivals()
 
             new_process->shm_ptr = shm_ptr; // Store the pointer to shared memory
 
+            printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
+            printf("Received new process %d at time %d\n", new_process->id, current_time);
+            // log_process_state(new_process, "arrived");
+
             // Add to processes array
             static_process_count++;
             actual_running_time += new_process->runtime;
