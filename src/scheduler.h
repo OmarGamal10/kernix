@@ -45,7 +45,6 @@ struct PCB {
     int shm_id;            // Shared memory ID
     int *shm_ptr;          // Pointer to shared memory
     int ending_time;       // Time when the process finished
-
 };
 
 typedef struct PCB PCB; // Typedef for easier usage of PCB

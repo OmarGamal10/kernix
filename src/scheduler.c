@@ -8,7 +8,7 @@ int algorithm;
 int quantum;   
 int arr_msgq_id;
 int comp_msgq_id;          
-FILE* logFile;          
+FILE* logFile;         
 void* readyQueue;        
 PCB* PCB_table_head = NULL;
 PCB* PCB_table_tail = NULL;
@@ -70,7 +70,12 @@ void initialize(int alg, int q)
         perror("Failed to open log file");
         exit(1);
     }
-    fprintf(logFile, "#At time x process y state arr w total z remain y wait k\n");
+    if (!logFile)
+    {
+        perror("Failed to open log file");
+        exit(1);
+    }
+    fprintf(logFile, "#At time x process y state arr w total z remain y wait k\n");    
 
     // Open arrival message queue
     key_t arr_key = ftok("keyfile", 'a');
@@ -109,6 +114,10 @@ void run_scheduler()
             current_time = new_time;
 
             // Check if process finished
+            if (running_process && running_process->remaining_time >= 0)
+            {
+                update_process_times();
+            }
             if (running_process && running_process->remaining_time <= 0)
             {
                 handle_finished_process();
@@ -119,8 +128,6 @@ void run_scheduler()
             // Select next process if needed
             check_context_switch();
             
-            // Update process times
-            update_process_times();
         }
     }
     log_performance_stats();
@@ -202,7 +209,6 @@ void check_arrivals()
             new_process->wait_time = 0;
             new_process->start_time = -1;
             new_process->status = READY;
-
             // Attach to the shared memory
             int *shm_ptr = (int *)shmat(msg.shm_id, NULL, 0);
             if (new_process->shm_ptr == (int *)-1)
@@ -213,6 +219,10 @@ void check_arrivals()
             }
 
             new_process->shm_ptr = shm_ptr; // Store the pointer to shared memory
+
+            printf("\033[0;34m"); printf("[Scheduler] "); printf("\033[0m");
+            printf("Received new process %d at time %d\n", new_process->id, current_time);
+            // log_process_state(new_process, "arrived");
 
             // Add to processes array
             static_process_count++;
@@ -554,6 +564,7 @@ void log_performance_stats()
     }
     fprintf(perfLogFile, "Std WTA = %.2f\n", pow(diffSquared / static_process_count, 1.0 / 2));
 }
+
 
 void PCB_add(PCB *process)
 {

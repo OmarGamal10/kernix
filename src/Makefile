@@ -21,6 +21,7 @@ PROCESS_GEN_SRC = $(SRC_DIR)/process_generator.c
 PROCESS_SRC     = $(SRC_DIR)/process.c
 QUEUE_SRC       = $(MODELS_DIR)/Queue/queue.c
 MINHEAP_SRC     = $(MODELS_DIR)/minHeap1/minHeap.c
+BUDDY_SRC	  = $(SRC_DIR)/memory.c
 
 # Object files
 CLK_OBJ         = clk.o
@@ -29,6 +30,7 @@ PROCESS_GEN_OBJ = process_generator.o
 PROCESS_OBJ     = process.o
 QUEUE_OBJ       = queue.o
 MINHEAP_OBJ     = minheap.o
+BUDDY_OBJ      = buddy.o
 
 .PHONY: all clean keyfile setup
 
@@ -44,7 +46,7 @@ keyfile:
 	@touch keyfile
 
 # Build process_generator - must include scheduler objects
-$(PROCESS_GENERATOR): $(PROCESS_GEN_OBJ) $(CLK_OBJ) $(SCHEDULER_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ)
+$(PROCESS_GENERATOR): $(PROCESS_GEN_OBJ) $(CLK_OBJ) $(SCHEDULER_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ) $(BUDDY_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Build scheduler
@@ -54,6 +56,10 @@ $(SCHEDULER): $(SCHEDULER_OBJ) $(CLK_OBJ) $(QUEUE_OBJ) $(MINHEAP_OBJ)
 # Build process
 $(PROCESS): $(PROCESS_OBJ) $(CLK_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Build buddy allocator
+$(BUDDY_OBJ): $(BUDDY_SRC) $(SRC_DIR)/memory.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile clk.c
 $(CLK_OBJ): $(CLK_SRC) $(SRC_DIR)/clk.h
